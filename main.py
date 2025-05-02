@@ -1,94 +1,87 @@
-# Importamos las librerías necesarias
-import pygame                       # Manejar ventana, teclado y mouse
-from pygame.locals import *         # Constantes de Pygame (como QUIT, KEYDOWN, etc.)
-from OpenGL.GL import *              # Funciones de OpenGL normales (dibujar, etc.)
-from OpenGL.GLU import *             # Funciones de cámara (gluPerspective)
-import pywavefront                  # Para cargar modelos 3D .obj fácilmente
+import pygame
+from pygame.locals import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import math
 
-# Función para cargar un modelo .obj
-def load_model(path):
-    # pywavefront carga el archivo obj y guarda toda la info del modelo (vértices, caras, etc.)
-    return pywavefront.Wavefront(path, create_materials=True, collect_faces=True)
+# se carga las librerias que funcionan para cargar y guadar los modelos
+import Modelos
+import Camara
 
-# Función para dibujar el modelo
-def draw_model(scene):
-    # Recorremos todas las partes (meshes) del modelo
-    for name, mesh in scene.meshes.items():
-        glBegin(GL_TRIANGLES)  # Vamos a dibujar usando triángulos
-        for face in mesh.faces:
-            for vertex_i in face:
-                # Cada face contiene índices que apuntan a los vértices reales
-                # scene.vertices guarda las coordenadas x, y, z
-                glVertex3f(*scene.vertices[vertex_i])
-        glEnd()
-    
-
-
-# Función principal donde ocurre todo
 def main():
-    pygame.init()  # Inicializa Pygame
-
-    # Define el tamaño de la ventana
+    pygame.init()
     display = (800, 600)
-    # Crea la ventana de doble buffer (mejor rendimiento) y con soporte OpenGL
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
-    pygame.display.set_caption("Render Modelo Blender")  # Título de la ventana
-    
-    eye = (0.0, 0.0, 3.0)  # Posición inicial de la cámara
-    center = (0.0, 0.0, 0.0)  # Punto al que mira la cámara
-    up = (0.0, 1.0, 0.0)  # Vector "up" de la cámara (normalmente (0, 1, 0))
+    pygame.display.set_caption("Modo caminar con gluLookAt")
 
-    # Configura la perspectiva de la cámara
-    # 45° de apertura, proporción de aspecto (ancho/alto), distancia de visión mínima y máxima
-    gluPerspective(45, (display[0] / display[1]), 0.1, 1000.0)
-
-    # Mueve la cámara 5 unidades hacia atrás y 1 unidad hacia abajo
-    glTranslatef(0.0, -1.0, -500)
-
-    # Habilita el test de profundidad para que los objetos se dibujen correctamente en 3D
     glEnable(GL_DEPTH_TEST)
+    gluPerspective(45, (display[0] / display[1]), 0.1, 700.0)
 
-    # Cargamos el modelo 3D
-    modelo = load_model('modelosObj/Hacienda.obj')
-
-    # Creamos un reloj para controlar la cantidad de frames por segundo
+    modelo = Modelos.Modelo('modelosObj/Hacienda.obj')
+    camara = Camara.Camaras([0.0, 1.0, -250.0], 0.0 , 1, 2.0)
     clock = pygame.time.Clock()
 
-    running = True  # Variable para saber si seguimos ejecutando el programa
+    running = True
     while running:
-        clock.tick(60)  # Limitamos el bucle a 60 FPS
+        clock.tick(60)
 
-        # Capturamos todos los eventos (teclado, cerrar ventana, etc.)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-                 
-        
-         # Detectar teclas
+                
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_presses = pygame.mouse.get_pressed()
+                if mouse_presses[0]:
+                    print("Left Mouse key was clicked" )    
+
+
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            rotate_y -= 1
-        if keys[pygame.K_RIGHT]:
-            rotate_y += 1
-        if keys[pygame.K_UP]:
-            rotate_x -= 1
-        if keys[pygame.K_DOWN]:
-            rotate_x += 1
-        
-        
 
-        # Limpiamos la pantalla
+
+        # Rotaciones
+        if keys[K_LEFT]:
+            camara.cam_yaw -= camara.sencibilidad
+        if keys[K_RIGHT]:
+            camara.cam_yaw += camara.sencibilidad
+
+        # Movimiento adelante / atrás
+        sin_yaw = math.sin(math.radians(camara.cam_yaw))
+        cos_yaw = math.cos(math.radians(camara.cam_yaw))
+
+        if keys[K_w]:  # Avanzar
+            camara.cam_pos[0] += sin_yaw * camara.velocidad
+            camara.cam_pos[2] -= cos_yaw * camara.velocidad
+            print(camara.cam_pos)
+        if keys[K_s]:  # Retroceder
+            camara.cam_pos[0] -= sin_yaw * camara.velocidad
+            camara.cam_pos[2] += cos_yaw * camara.velocidad
+            print(camara.cam_pos)
+        if keys[K_a]:  # Izquierda
+            camara.cam_pos[0] -= cos_yaw * camara.velocidad
+            camara.cam_pos[2] -= sin_yaw * camara.velocidad
+            print(camara.cam_pos)
+        if keys[K_d]:  # Derecha
+            camara.cam_pos[0] += cos_yaw * camara.velocidad
+            camara.cam_pos[2] += sin_yaw * camara.velocidad
+            print(camara.cam_pos)
+            
+        
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
 
-        # Dibujamos el modelo
-        draw_model(modelo)
+        camara.InicializarTarget()
 
-        # Actualizamos la ventana
+        # Definir la vista (cámara)
+        gluLookAt(
+            camara.cam_pos[0], camara.cam_pos[1], camara.cam_pos[2],
+            camara.cam_target[0], camara.cam_target[1], camara.cam_target[2], 
+            0, 1, 0                                
+        )
+
+        modelo.DibujarModelo()
         pygame.display.flip()
 
-    # Cuando salimos del bucle, cerramos Pygame
     pygame.quit()
 
-# Si este archivo se ejecuta directamente, corremos main()
 if __name__ == "__main__":
     main()
