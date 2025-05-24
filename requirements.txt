@@ -2,3 +2,5 @@ PyOpenGL
 PyOpenGL_accelerate
 pygame
 pywavefront
+numpy
+Pillow

@@ -1,33 +1,25 @@
-import pygame
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import math
+
 class Camaras:
-
-        
-    def __init__(self, cam_pos:list , cam_yaw:float, velocidad:float, sensibilidad:float):
-        """ 
-            Cam_pos es la posicion de la camara,
-            Cam_yaw es el eje de vista o de rotacion con respecto a la vista,
-            Velocidad es la velocidad con la que se mueve la camara,
-            Sensibilidad es el coefinciente para mover la camara,
-            
-        """
+    def __init__(self, cam_pos: list, cam_yaw: float, cam_pitch: float, velocidad: float, sensibilidad: float, up: list):
         self.cam_pos = cam_pos
-        self.cam_yaw = cam_yaw
+        self.cam_yaw = cam_yaw      # horizontal
+        self.cam_pitch = cam_pitch  # vertical
         self.velocidad = velocidad
-        self.sencibilidad = sensibilidad
-        self.cam_target = [] 
-        
-        
-    def InicializarTarget(self):
+        self.sensibilidad = sensibilidad
+        self.up = up
+        self.cam_target = []
+        self.ActualizarTarget()
+
+    def ActualizarTarget(self):
+        # Calcula la dirección mirando con yaw y pitch
+        rad_yaw = math.radians(self.cam_yaw)
+        rad_pitch = math.radians(self.cam_pitch)
+
         self.cam_target = [
-            self.cam_pos[0] + math.sin(math.radians(self.cam_yaw)),
-            self.cam_pos[1],
-            self.cam_pos[2] - math.cos(math.radians(self.cam_yaw))
+            math.cos(rad_pitch) * math.sin(rad_yaw),
+            math.sin(rad_pitch),
+            -math.cos(rad_pitch) * math.cos(rad_yaw)
         ]
-
-
-        
-
-        

@@ -72,38 +72,6 @@ d 1.000000
 illum 2
 map_Kd C:/Users/jessu/Documents/Proyecto-Programacion-Grafica/Modelos/descarga.jpg
 
-newmtl Terreno
-Ka 1.000000 1.000000 1.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.450000
-d 1.000000
-illum 2
-map_Kd C:/Users/jessu/Documents/Proyecto-Programacion-Grafica/Pictures/Tierra.jpg
-map_Ns F:/estiven cursos y más/CURSOS/Blender 2.79/texturas/Texturas de rocas/Rock020_2K-JPG/Rock020_2K_Roughness.jpg
-map_Bump -bm 1.500000 F:/estiven cursos y más/CURSOS/Blender 2.79/texturas/Texturas de rocas/Rock020_2K-JPG/Rock020_2K_NormalDX.jpg
-
-newmtl bark_2_mat
-Ka 1.000000 1.000000 1.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.450000
-d 1.000000
-illum 2
-map_Kd -s 2 2 1 C:/bark 2 color.png
-map_Ns -s 2 2 1 C:/bark 2_Roughness.png
-map_Bump -s 2 2 1 -bm 0.500000 C:/bark 2_Normal_OpenGL.png
-
-newmtl leaf_4_mat
-Ns 360.000000
-Ka 1.000000 1.000000 1.000000
-Kd 0.800000 0.800000 0.800000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.000000
-d 1.000000
-illum 2
-
 newmtl plants_atlas_mat
 Ns 360.000000
 Ka 1.000000 1.000000 1.000000
