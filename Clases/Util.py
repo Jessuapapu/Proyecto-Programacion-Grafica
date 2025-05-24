@@ -6,7 +6,7 @@ import math
 
 # se carga los modelos de clases para una mejor estructura
 import Modelos
-import Camara
+import Clases.Camara as Camara
 
 def normalizar(vec):
     l = math.sqrt(sum([x ** 2 for x in vec]))

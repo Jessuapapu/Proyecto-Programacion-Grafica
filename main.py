@@ -3,7 +3,7 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-import Modelos, Camara, Util, Joycon
+import Clases.Modelos as Modelos, Clases.Camara as Camara, Clases.Util as Util, Clases.Joycon as Joycon
 
 def main():
     pygame.init()
@@ -55,14 +55,7 @@ def main():
         mouse_dx, mouse_dy = pygame.mouse.get_rel()
         camara.cam_yaw += mouse_dx * camara.sensibilidad
         camara.cam_pitch -= mouse_dy * camara.sensibilidad
-        
-        
 
-
-        camara.cam_pitch = max(-89.0, min(89.0, camara.cam_pitch))
-
-        camara.ActualizarTarget()
-        camara.cam_target = Util.normalizar(camara.cam_target)
      
         r = Util.normalizar(Util.cross(camara.cam_target, camara.up))
         
@@ -85,10 +78,11 @@ def main():
         if Control.JoyStick is not None:
             camara.cam_yaw += Control.get_PalancaDerecha()[0] * Control.Sensi
             camara.cam_pitch -= Control.get_PalancaDerecha()[1] * Control.Sensi
-            
-            camara.cam_pitch = max(-89.0, min(89.0, camara.cam_pitch))
-            camara.ActualizarTarget()
-            camara.cam_target = Util.normalizar(camara.cam_target)
+
+        
+        camara.cam_pitch = max(-89.0, min(89.0, camara.cam_pitch))
+        camara.ActualizarTarget()
+        camara.cam_target = Util.normalizar(camara.cam_target)
             
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
