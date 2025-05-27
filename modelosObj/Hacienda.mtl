@@ -1,4 +1,4 @@
-# Blender 4.4.1 MTL File: 'Hacienda.blend'
+# Blender 4.4.3 MTL File: 'Hacienda.blend'
 # www.blender.org
 
 newmtl Acercado
@@ -9,68 +9,98 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd C:/Users/User/Pictures/Madera.jpg
+map_Kd Madera.jpeg
+
+newmtl Albedo
+Ns 360.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
 
 newmtl Cercado2
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.800458 0.757497 0.636797
+Kd 0.078350 0.039284 0.012726
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-
-newmtl Material.001
-Ka 1.000000 1.000000 1.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.450000
-d 1.000000
-illum 2
-map_Kd C:/Users/User/Documents/Blender/albedo.png
-map_Ns C:/Users/User/Documents/Blender/roughness.png
-map_Bump -bm 1.000000 C:/Users/User/Documents/Blender/normal.png
 
 newmtl Paredes
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.801684 0.751276 0.712577
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+map_Kd C:/bark 2_Roughness.png
 
 newmtl Partedeltecho
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.800000 0.800000 0.800000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+map_Kd Vinilopintado.jpeg
 
 newmtl Soporte
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Madera.jpeg
+
+newmtl Suelo
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd Vinilopintado.jpeg
+
+newmtl Techo
+Ns 360.000000
+Ka 1.000000 1.000000 1.000000
 Kd 0.800000 0.800000 0.800000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
-Ni 1.450000
+Ni 1.000000
 d 1.000000
 illum 2
 
-newmtl Techo
-Ns 250.000000
+newmtl bark_2_mat
 Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd C:/Users/jessu/Documents/Proyecto-Programacion-Grafica/Modelos/descarga.jpg
+map_Kd -s 2 2 1 C:/bark 2 color.png
+map_Ns -s 2 2 1 C:/bark 2_Roughness.png
+map_Bump -s 2 2 1 -bm 0.500000 C:/bark 2_Normal_OpenGL.png
+
+newmtl leaf_4_mat
+Ns 360.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
 
 newmtl plants_atlas_mat
 Ns 360.000000
