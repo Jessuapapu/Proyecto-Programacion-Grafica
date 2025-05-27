@@ -3,7 +3,9 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
-import Clases.Modelos as Modelos, Clases.Camara as Camara, Clases.Util as Util, Clases.Joycon as Joycon
+import Clases.Camara as Camara, Clases.Util as Util, Clases.Joycon as Joycon
+from Escenas import EscenaClass as Escenas 
+from Escenas import Hacienda as Hac
 
 def main():
     pygame.init()
@@ -15,21 +17,24 @@ def main():
     glMatrixMode(GL_PROJECTION)
     gluPerspective(45, (display[0] / display[1]), 0.1, 700.0)
     glMatrixMode(GL_MODELVIEW)
-
-    modelo = Modelos.Modelo('modelosObj/Hacienda.obj')
+    
     
     #Inicializar controles
     pygame.joystick.init()
-    
     Control = Joycon.Joycon(0.3,4,0)
+           
            
     # posición inicial y configuración
     camara = Camara.Camaras([0.0, 3.0, 20.0], 0.0, 0.0, 0.1, 1.0, [0.0, 1.0, 0.0])
     pygame.event.set_grab(True)        # captura el mouse en la ventana
     pygame.mouse.set_visible(False)    # oculta el cursor
 
+
     clock = pygame.time.Clock()
     running = True
+    
+    
+    Hacienda = Escenas.Escenas(Hac.ListHacienda)
     
     while running:
         dt = clock.tick(60)
@@ -94,8 +99,13 @@ def main():
             camara.cam_pos[2] + camara.cam_target[2],
             0, 1, 0
         )
-
-        modelo.DibujarModelo()
+        """
+        Como hace falta hacer las escenas donde va todo esto, alberth se va encargar de colocar las cosas en su lugar y hacer las escenas por 
+        medio de clases, luego yo me voy encargar en poner la iluminacion
+        """
+        
+        # modelo.DibujarModelo()
+        Hacienda.DibujarEscena()
         pygame.display.flip()
         
     pygame.joystick.quit()
