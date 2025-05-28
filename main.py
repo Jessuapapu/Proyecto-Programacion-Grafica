@@ -4,11 +4,18 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 import Clases.Camara as Camara, Clases.Util as Util, Clases.Joycon as Joycon
-from Escenas import EscenaClass as Escenas, skybox
-from Escenas import Hacienda as Hac
+from Escenas import EscenaClass as Escenas, skybox, Hacienda as Hac, menu2 as men2
 
 def main():
     pygame.init()
+    men2.montrar_menu()
+    if not men2.mostrar_menu():
+        return  # salir si el usuario cierra el menú
+
+    # Ahora inicia la escena 3D
+    pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
+    gluPerspective(45, (800 / 600), 0.1, 700.0)
+    ...
     display = (800, 600)
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     pygame.display.set_caption("Proyecto")
