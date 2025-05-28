@@ -8,6 +8,8 @@ import Clases.Util as Util
 import Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
 from Escenas import Hacienda as Hac
+from Audio.Sonido import sonido
+
 
 def main():
     pygame.init()
@@ -40,6 +42,10 @@ def main():
     esDia = False
     ultima_hora = -1
 
+    # Sonido
+    sonido.reproducir_musica("Paseo")
+
+    
     while running:
         dt = clock.tick(60)
         tiempo_segundos = dt / 1000.0
@@ -123,6 +129,7 @@ def main():
         pygame.display.flip()
 
     pygame.joystick.quit()
+    sonido.detener_musica()
     pygame.quit()
 
 if __name__ == "__main__":
