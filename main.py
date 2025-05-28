@@ -117,7 +117,7 @@ def main():
         pygame.display.flip()
         
     pygame.joystick.quit()
-    sonido.detener_musica()
+    sonido.cerrar_sonidos() 
     pygame.quit()
 
 if __name__ == "__main__":
