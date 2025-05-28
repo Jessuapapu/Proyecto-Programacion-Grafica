@@ -251,3 +251,6 @@ cython_debug/
 .pypirc
 Modelos/Blender/Hacienda.blend1
 Modelos/Blender/Hacienda.blend
+
+*.mtl
+*.obj
