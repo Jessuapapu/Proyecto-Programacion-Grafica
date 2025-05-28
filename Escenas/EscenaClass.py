@@ -1,4 +1,3 @@
-
 class Escenas:
     def __init__(self,ListModels:list):
         self.Modelos = ListModels

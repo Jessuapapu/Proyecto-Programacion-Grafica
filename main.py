@@ -4,7 +4,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 import Clases.Camara as Camara, Clases.Util as Util, Clases.Joycon as Joycon
-from Escenas import EscenaClass as Escenas 
+from Escenas import EscenaClass as Escenas, skybox
 from Escenas import Hacienda as Hac
 
 def main():
@@ -33,8 +33,9 @@ def main():
     clock = pygame.time.Clock()
     running = True
     
-    
+    # Escenas
     Hacienda = Escenas.Escenas(Hac.ListHacienda)
+    SkyBoxes = skybox.Skybox(250)
     
     while running:
         dt = clock.tick(60)
@@ -99,12 +100,14 @@ def main():
             camara.cam_pos[2] + camara.cam_target[2],
             0, 1, 0
         )
+        
         """
         Como hace falta hacer las escenas donde va todo esto, alberth se va encargar de colocar las cosas en su lugar y hacer las escenas por 
         medio de clases, luego yo me voy encargar en poner la iluminacion
         """
         
         # modelo.DibujarModelo()
+        SkyBoxes.draw()
         Hacienda.DibujarEscena()
         pygame.display.flip()
         
