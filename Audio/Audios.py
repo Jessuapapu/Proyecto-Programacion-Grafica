@@ -8,6 +8,7 @@ class Musica:
             mixer.init()
         self.musicas = {}
         self.ruta_base = ruta_base
+        self.efectos={}
 
 #Carga la musica de fondo para el paseo
     def cargar_musica(self, nombre, archivo):
@@ -41,7 +42,7 @@ class Musica:
     def continuar_musica(self):
         mixer.music.unpause()
 
-    def cerrar_sonidos():
+    def cerrar_sonidos(self):
         pygame.mixer.stop()
 
 
