@@ -6,6 +6,8 @@ from OpenGL.GLU import *
 import Clases.Camara as Camara, Clases.Util as Util, Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
 from Escenas import Hacienda as Hac
+from Audio.Sonido import sonido
+
 
 def main():
     pygame.init()
@@ -36,6 +38,9 @@ def main():
     # Escenas
     Hacienda = Escenas.Escenas(Hac.ListHacienda)
     SkyBoxes = skybox.Skybox(250)
+    # Sonido
+    sonido.reproducir_musica("Paseo")
+
     
     while running:
         dt = clock.tick(60)
@@ -112,6 +117,7 @@ def main():
         pygame.display.flip()
         
     pygame.joystick.quit()
+    sonido.detener_musica()
     pygame.quit()
 
 if __name__ == "__main__":
