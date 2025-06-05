@@ -8,6 +8,7 @@ import Clases.Util as Util
 import Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
 from Escenas import Hacienda as Hac
+from Escenas import menu2 as men2 
 from Audio.Sonido import sonido
 
 
