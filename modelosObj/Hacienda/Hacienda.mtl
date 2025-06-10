@@ -9,7 +9,18 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Madera.jpeg
+map_Kd HaciendaSJ/Madera.jpeg
+
+newmtl Albedo.001
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd HaciendaSJ/albedo2.jpeg
+map_Ns HaciendaSJ/bark 2_Roughness.png
+map_refl HaciendaSJ/albedo2.jpeg
 
 newmtl Cercado2
 Ns 250.000000
@@ -19,7 +30,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Madera.jpeg
+map_Kd HaciendaSJ/Madera.jpeg
 
 newmtl Paredes
 Ns 250.000000
@@ -29,7 +40,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Vinilopintado.jpeg
+map_Kd C:/bark 2_Roughness.png
 
 newmtl Partedeltecho
 Ns 250.000000
@@ -39,7 +50,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Vinilopintado.jpeg
+map_Kd HaciendaSJ/Vinilopintado.jpeg
 
 newmtl Partedeltecho.001
 Ns 250.000000
@@ -49,7 +60,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Vinilopintado.jpeg
+map_Kd HaciendaSJ/Vinilopintado.jpeg
 
 newmtl Partedeltecho.002
 Ns 250.000000
@@ -59,7 +70,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Vinilopintado.jpeg
+map_Kd HaciendaSJ/Vinilopintado.jpeg
 
 newmtl Soporte
 Ns 250.000000
@@ -69,7 +80,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd Madera.jpeg
+map_Kd HaciendaSJ/Madera.jpeg
 
 newmtl Suelo
 Ns 250.000000
@@ -79,7 +90,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd Vinilopintado.jpeg
+map_Kd HaciendaSJ/Vinilopintado.jpeg
 
 newmtl Techo
 Ns 360.000000
@@ -90,7 +101,6 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd techobarro.jpeg
 
 newmtl Tereno
 Ns 250.000000
@@ -100,7 +110,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd Pastoterreno.jpeg
+map_Kd C:/Users/User/OneDrive/Imágenes/Pastoterreno.jpeg
 
 newmtl bark_2_mat
 Ka 1.000000 1.000000 1.000000
@@ -110,9 +120,9 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Ns -s 2 2 1 bark 2_Roughness.png
-map_refl -s 2 2 1 bark 2 color.png
-map_Bump -s 2 2 1 -bm 0.500000 bark 2_Normal_OpenGL.png
+map_Ns -s 2 2 1 C:/bark 2_Roughness.png
+map_refl -s 2 2 1 C:/bark 2 color.png
+map_Bump -s 2 2 1 -bm 0.500000 C:/bark 2_Normal_OpenGL.png
 
 newmtl leaf_4_mat
 Ns 360.000000
@@ -133,14 +143,3 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-
-newmtl Albedo.001
-Ka 1.000000 1.000000 1.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.500000
-d 1.000000
-illum 2
-map_Kd albedo2.jpeg
-map_Ns bark 2_Roughness.png
-map_refl albedo2.jpeg
