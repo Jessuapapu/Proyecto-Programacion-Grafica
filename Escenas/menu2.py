@@ -77,13 +77,13 @@ class Panel:
         self.close_callback = close_callback
 
     def draw(self, surface, mouse_pos, click):
-        rect = pygame.Rect(40, 40, INTERNAL_WIDTH - 80, INTERNAL_HEIGHT - 80)
+        rect = pygame.Rect((INTERNAL_WIDTH - 500) // 2, (INTERNAL_HEIGHT - 300) // 2, 500, 300)
         pygame.draw.rect(surface, (103, 77, 64), rect)
         pygame.draw.rect(surface, (255, 255, 255), rect, 2)
-        y = 60
+        y = rect.top + 20
         for line in self.lines:
             text = font.render(line, True, (255, 255, 255))
-            surface.blit(text, (60, y))
+            surface.blit(text, (rect.left + 20, y))
             y += 30
         if click:
             self.close_callback()
@@ -94,11 +94,11 @@ class SettingsPanel:
         self.sliders = sliders
         self.close_callback = close_callback
         self.controller_ref = controller_ref
+        self.rect = pygame.Rect((INTERNAL_WIDTH - 500) // 2, (INTERNAL_HEIGHT - 300) // 2, 500, 300)
 
     def draw(self, surface, mouse_pos, click):
-        rect = pygame.Rect(40, 40, INTERNAL_WIDTH - 80, INTERNAL_HEIGHT - 80)
-        pygame.draw.rect(surface, (103, 77, 64), rect)
-        pygame.draw.rect(surface, (255, 255, 255), rect, 2)
+        pygame.draw.rect(surface, (103, 77, 64), self.rect)
+        pygame.draw.rect(surface, (255, 255, 255), self.rect, 2)
 
         for item in self.sliders:
             if isinstance(item, Slider):
@@ -108,13 +108,16 @@ class SettingsPanel:
 
         status = "CONECTADO" if self.controller_ref["value"] else "NO CONECTADO"
         text = font.render(f"CONTROL: {status}", True, (255, 255, 255))
-        surface.blit(text, (300, 220))
+
+        # Cambio aquí: centrado y justo arriba del botón REGRESAR
+        text_rect = text.get_rect(center=(self.rect.centerx, 250 - 15))  # 250 es la Y del botón REGRESAR
+        surface.blit(text, text_rect)
 
         pygame.mixer.music.set_volume(self.sliders[0].value_ref["value"] / 3)
 
         if click:
             mouse_rect = pygame.Rect(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE, 1, 1)
-            if not rect.contains(mouse_rect):
+            if not self.rect.contains(mouse_rect):
                 self.close_callback()
 
 # --- Clase principal del menú ---
