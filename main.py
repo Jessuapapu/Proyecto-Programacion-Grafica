@@ -10,6 +10,7 @@ from Escenas import EscenaClass as Escenas, skybox
 from Escenas import Hacienda as Hac
 from Escenas import menu2 as men2 
 from Audio.Sonido import sonido
+import Escenas.Iluminacion as iluminacion
 
 
 def main():
@@ -34,6 +35,7 @@ def main():
     # Inicializar controles
     pygame.joystick.init()
     Control = Joycon.Joycon(0.3, 4, 0)
+    sonido.cargar_efecto("Efecto_paso")
 
     # Cámara
     camara = Camara.Camaras([0.0, 3.0, 20.0], 0.0, 0.0, 0.1, 1.0, [0.0, 1.0, 0.0])
@@ -43,6 +45,7 @@ def main():
     # Escenas
     Hacienda = Escenas.Escenas(Hac.ListHacienda)
     SkyBoxes = skybox.Skybox(250)
+
 
     clock = pygame.time.Clock()
     running = True
@@ -57,6 +60,7 @@ def main():
     
     while running:
         dt = clock.tick(60)
+
         tiempo_segundos = dt / 1000.0
         camara.velocidad = 10 * tiempo_segundos
 
@@ -130,6 +134,11 @@ def main():
 
         # Dibujar Skybox según hora
         SkyBoxes.draw(esDia)
+
+        #Iluminacion
+        iluminacion.update_light()
+        iluminacion.draw_cube_light()
+        iluminacion.draw_ground()
 
         # Dibujar escena
         Hacienda.DibujarEscena()
