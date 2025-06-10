@@ -2,12 +2,14 @@ import pygame
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
+from OpenGL.GLUT import *
+import numpy as np
 
 import Clases.Camara as Camara
 import Clases.Util as Util
 import Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
-from Escenas import Hacienda as Hac
+#from Escenas import Hacienda as Hac
 from Escenas import menu2 as men2 
 from Audio.Sonido import sonido
 import Escenas.Iluminacion as iluminacion
@@ -15,9 +17,10 @@ import Escenas.Iluminacion as iluminacion
 
 def main():
     pygame.init()
-    men2.montrar_menu()
-    if not men2.mostrar_menu():
-        return  # salir si el usuario cierra el menú
+    glutInit()
+    #men2.mostrar_menu()
+    #if not men2.mostrar_menu():
+     #   return  # salir si el usuario cierra el menú
 
     # Ahora inicia la escena 3D
     pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
@@ -35,7 +38,7 @@ def main():
     # Inicializar controles
     pygame.joystick.init()
     Control = Joycon.Joycon(0.3, 4, 0)
-    sonido.cargar_efecto("Efecto_paso")
+    sonido.cargar_efecto("Efecto_paso","footstep.mp3")
 
     # Cámara
     camara = Camara.Camaras([0.0, 3.0, 20.0], 0.0, 0.0, 0.1, 1.0, [0.0, 1.0, 0.0])
@@ -43,9 +46,18 @@ def main():
     pygame.mouse.set_visible(False)
 
     # Escenas
-    Hacienda = Escenas.Escenas(Hac.ListHacienda)
+    #Hacienda = Escenas.Escenas(Hac.ListHacienda)
     SkyBoxes = skybox.Skybox(250)
+    
+    #iluminacion
+   
+    iluminacion.init_lighting()
 
+    glutDisplayFunc(iluminacion.display)
+    glutIdleFunc(iluminacion.idle)
+    glutReshapeFunc(iluminacion.reshape)
+    
+    #glutMainLoop()
 
     clock = pygame.time.Clock()
     running = True
@@ -55,7 +67,7 @@ def main():
     ultima_hora = -1
 
     # Sonido
-    sonido.reproducir_musica("Paseo")
+    sonido.reproducir_musica("musica1", True)
 
     
     while running:
@@ -137,11 +149,11 @@ def main():
 
         #Iluminacion
         iluminacion.update_light()
-        iluminacion.draw_cube_light()
-        iluminacion.draw_ground()
-
+        
+        iluminacion.draw_manual_cube()
+      
         # Dibujar escena
-        Hacienda.DibujarEscena()
+        #Hacienda.DibujarEscena()
 
         # Mostrar en pantalla
         pygame.display.flip()
