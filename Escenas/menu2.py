@@ -221,7 +221,3 @@ def mostrar_menu():
         clock.tick(60)
 
     pygame.quit()
-
-# Ejecutar el menú si se corre este script directamente
-if __name__ == "__main__":
-    mostrar_menu()

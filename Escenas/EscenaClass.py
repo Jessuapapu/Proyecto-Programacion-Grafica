@@ -4,7 +4,7 @@ class Escenas:
         
     def DibujarEscena(self):
         for Modelo in self.Modelos:
-            Modelo.DibujarModelo()
+            Modelo.draw()
         
 
         

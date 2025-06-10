@@ -9,18 +9,21 @@ import Clases.Camara as Camara
 import Clases.Util as Util
 import Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
-#from Escenas import Hacienda as Hac
+from Escenas import Hacienda as Hac
 from Escenas import menu2 as men2 
 from Audio.Sonido import sonido
 import Escenas.Iluminacion as iluminacion
+from Clases.Modelo import Modelo
 
 
 def main():
     pygame.init()
     glutInit()
+    # Inicializar controles
+    #pygame.joystick.init()
     #men2.mostrar_menu()
     #if not men2.mostrar_menu():
-     #   return  # salir si el usuario cierra el menú
+    #   return  # salir si el usuario cierra el menú
 
     # Ahora inicia la escena 3D
     pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
@@ -35,8 +38,7 @@ def main():
     gluPerspective(45, (display[0] / display[1]), 0.1, 700.0)
     glMatrixMode(GL_MODELVIEW)
 
-    # Inicializar controles
-    pygame.joystick.init()
+
     Control = Joycon.Joycon(0.3, 4, 0)
     sonido.cargar_efecto("Efecto_paso","footstep.mp3")
 

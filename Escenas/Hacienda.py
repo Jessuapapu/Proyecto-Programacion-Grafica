@@ -1,5 +1,5 @@
-from Clases import Modelos
+from Clases import Modelo
 
-Hacienda = Modelos.Modelo("modelosObj/Hacienda.obj")
+Hacienda = Modelo.Modelos("./modelosObj/Hacienda/Hacienda.obj", "./modelosObj/Hacienda/HAcienda.mtl", "./modelosObj/Hacienda/Hacienda_colision.obj")
 
 ListHacienda = [Hacienda]
