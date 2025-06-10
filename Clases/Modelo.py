@@ -6,8 +6,8 @@ import numpy as np
 import math
 from collections import defaultdict
 
-class Modelo:
-    def _init_(self, path_obj, path_mtl, path_colision=None, culling_dist=300.0, cell_size=4.0, collision_radius=0.6):
+class Modelos:
+    def __init__(self, path_obj, path_mtl, path_colision=None, culling_dist=300.0, cell_size=4.0, collision_radius=0.6):
         # Datos de geometría y texturas
         self.vertices = []
         self.texcoords = []
@@ -17,24 +17,15 @@ class Modelo:
         self.vbos = {}                # material -> (VBO, count)
         self.bounding_boxes = {}      # material -> (min, max)
 
+        self.path_obj = path_obj
+        self.path_mtl = path_mtl
+        self.path_colision = path_colision
+        
         # Parámetros de colisión y culling
         self.collision_cells = defaultdict(list)
         self.cell_size = cell_size
         self.collision_radius = collision_radius
         self.culling_distance = culling_dist
-
-        # Carga de malla y texturas
-        base = os.path.dirname(path_obj)
-        self._load_mtl(path_mtl)
-        self._load_obj(path_obj)
-        self._load_textures(base)
-
-        # Crear VBOs y bounding boxes
-        self._generate_vbos()
-
-        # Cargar malla de colisión si existe
-        if path_colision:
-            self._load_collision_mesh(path_colision)
 
     def _load_mtl(self, ruta_mtl):
         current = None
@@ -67,20 +58,26 @@ class Modelo:
                     self.groups[current].append(face)
 
     def _load_textures(self, base_path):
+        glEnable(GL_TEXTURE_2D)
+        
         for mat, filename in self.material_files.items():
             tex_path = os.path.join(base_path, filename)
             if os.path.exists(tex_path):
                 img = pygame.image.load(tex_path)
+                img = pygame.transform.flip(img, False, True)  # Corrige orientación
+                img = img.convert_alpha()
                 data = pygame.image.tostring(img, 'RGBA', True)
-                w,h = img.get_size()
+                w, h = img.get_size()
                 tex_id = glGenTextures(1)
                 glBindTexture(GL_TEXTURE_2D, tex_id)
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data)
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                glGenerateMipmap(GL_TEXTURE_2D)
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
                 self.textures_gl[mat] = tex_id
             else:
-                print(f"Textura no encontrada: {tex_path}")
+                print(f"⚠️ Textura no encontrada: {tex_path}")
+
 
     def _generate_vbos(self):
         for mat, faces in self.groups.items():
@@ -154,20 +151,53 @@ class Modelo:
         dist = math.sqrt(sum((center[i])**2 for i in range(3)))
         return dist < self.culling_distance
 
+    def cargarmodelos(self):        
+        # Carga de malla y texturas
+        base = os.path.dirname(self.path_obj)
+        self._load_mtl(self.path_mtl)
+        self._load_obj(self.path_obj)
+        self._load_textures(base)
+        
+        # Crear VBOs y bounding boxes
+        self._generate_vbos()
+
+        # Cargar malla de colisión si existe
+        if self.path_colision:
+            self._load_collision_mesh(self.path_colision)
+        
+        
     def draw(self):
+        glEnable(GL_TEXTURE_2D)
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+    
         for mat, (vb, count) in self.vbos.items():
             bb = self.bounding_boxes[mat]
             if not self._in_frustum(bb):
                 continue
+            
             tex = self.textures_gl.get(mat)
             if tex:
                 glBindTexture(GL_TEXTURE_2D, tex)
+    
             vb.bind()
+    
             glEnableClientState(GL_VERTEX_ARRAY)
             glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+            glEnableClientState(GL_NORMAL_ARRAY)
+    
+            # Normales simples hacia arriba (y=1) por cada vértice
+            normals = np.array([0.0, 1.0, 0.0] * count, dtype=np.float32)
+            glNormalPointer(GL_FLOAT, 0, normals)
+    
             glVertexPointer(3, GL_FLOAT, 20, vb)
             glTexCoordPointer(2, GL_FLOAT, 20, vb + 12)
             glDrawArrays(GL_TRIANGLES, 0, count)
+    
             glDisableClientState(GL_VERTEX_ARRAY)
             glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+            glDisableClientState(GL_NORMAL_ARRAY)
+    
             vb.unbind()
+    
+        glDisable(GL_LIGHTING)

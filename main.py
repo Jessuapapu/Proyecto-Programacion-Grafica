@@ -13,7 +13,6 @@ from Escenas import Hacienda as Hac
 from Escenas import menu2 as men2 
 from Audio.Sonido import sonido
 import Escenas.Iluminacion as iluminacion
-from Clases.Modelo import Modelo
 
 
 def main():
@@ -48,7 +47,9 @@ def main():
     pygame.mouse.set_visible(False)
 
     # Escenas
-    #Hacienda = Escenas.Escenas(Hac.ListHacienda)
+    
+    Hacienda = Escenas.Escenas(Hac.ListHacienda)
+    Hacienda.cargar()
     SkyBoxes = skybox.Skybox(250)
     
     #iluminacion
@@ -85,7 +86,6 @@ def main():
         # Cambio de estado día/noche solo si cambia la hora
         if horas != ultima_hora:
             ultima_hora = horas
-            print(horas)
             if horas == 6:
                 esDia = True
             elif horas == 18:
@@ -108,27 +108,42 @@ def main():
         camara.cam_pitch -= mouse_dy * camara.sensibilidad
 
         r = Util.normalizar(Util.cross(camara.cam_target, camara.up))
-
-        # Movimiento teclado
+    
+      # Movimiento teclado
         if keys[K_w]:
-            camara.cam_pos = [camara.cam_pos[i] + camara.cam_target[i] * camara.velocidad for i in range(3)]
+            nueva_pos = [camara.cam_pos[i] + camara.cam_target[i] * camara.velocidad for i in range(3)]
+            if not Hacienda.Modelos[0].collides(nueva_pos):
+                camara.cam_pos = nueva_pos
         if keys[K_s]:
-            camara.cam_pos = [camara.cam_pos[i] - camara.cam_target[i] * camara.velocidad for i in range(3)]
+            nueva_pos = [camara.cam_pos[i] - camara.cam_target[i] * camara.velocidad for i in range(3)]
+            if not Hacienda.Modelos[0].collides(nueva_pos):
+                camara.cam_pos = nueva_pos
         if keys[K_a]:
-            camara.cam_pos = [camara.cam_pos[i] - r[i] * camara.velocidad for i in range(3)]
+            nueva_pos = [camara.cam_pos[i] - r[i] * camara.velocidad for i in range(3)]
+            if not Hacienda.Modelos[0].collides(nueva_pos):
+                camara.cam_pos = nueva_pos
         if keys[K_d]:
-            camara.cam_pos = [camara.cam_pos[i] + r[i] * camara.velocidad for i in range(3)]
+            nueva_pos = [camara.cam_pos[i] + r[i] * camara.velocidad for i in range(3)]
+            if not Hacienda.Modelos[0].collides(nueva_pos):
+                camara.cam_pos = nueva_pos
+
 
         # Movimiento por joystick
         if Control.JoyStick is not None:
             izq = Control.get_PalancaIzquierda()
             der = Control.get_PalancaDerecha()
 
-            camara.cam_pos = [camara.cam_pos[i] + camara.cam_target[i] * (-Control.IDV * izq[1]) for i in range(3)]
-            camara.cam_pos = [camara.cam_pos[i] + r[i] * (Control.IDV * izq[0]) for i in range(3)]
+            nueva_pos = [camara.cam_pos[i] + camara.cam_target[i] * (-Control.IDV * izq[1]) for i in range(3)]
+            if not Hacienda.Modelos[0].collides(nueva_pos):
+                camara.cam_pos = nueva_pos
+
+            nueva_pos = [camara.cam_pos[i] + r[i] * (Control.IDV * izq[0]) for i in range(3)]
+            if not Hacienda.Modelos[0].collides(nueva_pos):
+                camara.cam_pos = nueva_pos
 
             camara.cam_yaw += der[0] * Control.Sensi
             camara.cam_pitch -= der[1] * Control.Sensi
+
 
         camara.cam_pitch = max(-89.0, min(89.0, camara.cam_pitch))
         camara.ActualizarTarget()
@@ -155,7 +170,7 @@ def main():
         iluminacion.draw_manual_cube()
       
         # Dibujar escena
-        #Hacienda.DibujarEscena()
+        Hacienda.DibujarEscena()
 
         # Mostrar en pantalla
         pygame.display.flip()
