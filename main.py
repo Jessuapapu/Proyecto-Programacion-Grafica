@@ -10,20 +10,26 @@ import Clases.Util as Util
 import Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
 from Escenas import Hacienda as Hac
-from Escenas import menu2 as men2 
+from Escenas import Menu as menu
 from Audio.Sonido import sonido
 import Escenas.Iluminacion as iluminacion
 
 
 def main():
+    # Inicializar controles
+    pygame.joystick.init()
+    Control = Joycon.Joycon(0.3, 4, 0)
+    resultados = menu.mostrar_menu(Control)
+
+    sensibilidad = resultados["Configuracion"][0]
+    velocidad = resultados["Configuracion"][1]
+    control_configurado = resultados["ControlConfiguracion"]
+
+    Control = control_configurado
+    
+    
     pygame.init()
     glutInit()
-    # Inicializar controles
-    #pygame.joystick.init()
-    #men2.mostrar_menu()
-    #if not men2.mostrar_menu():
-    #   return  # salir si el usuario cierra el menú
-
     # Ahora inicia la escena 3D
     pygame.display.set_mode((800, 600), DOUBLEBUF | OPENGL)
     gluPerspective(45, (800 / 600), 0.1, 700.0)
@@ -37,12 +43,10 @@ def main():
     gluPerspective(45, (display[0] / display[1]), 0.1, 700.0)
     glMatrixMode(GL_MODELVIEW)
 
-
-    Control = Joycon.Joycon(0.3, 4, 0)
     sonido.cargar_efecto("Efecto_paso","footstep.mp3")
 
     # Cámara
-    camara = Camara.Camaras([0.0, 3.0, 20.0], 0.0, 0.0, 0.1, 1.0, [0.0, 1.0, 0.0])
+    camara = Camara.Camaras([0.0, 3.0, 20.0], 0.0, 0.0, velocidad, sensibilidad, [0.0, 1.0, 0.0])
     pygame.event.set_grab(True)
     pygame.mouse.set_visible(False)
 
@@ -101,7 +105,8 @@ def main():
                 Control.__init__(Control.ZonaMuerta, Control.Sensi, 0, Control.IDV)
             if event.type == pygame.JOYDEVICEREMOVED:
                 Control.desactivar()
-
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                click = True
         # Movimiento del mouse
         mouse_dx, mouse_dy = pygame.mouse.get_rel()
         camara.cam_yaw += mouse_dx * camara.sensibilidad
