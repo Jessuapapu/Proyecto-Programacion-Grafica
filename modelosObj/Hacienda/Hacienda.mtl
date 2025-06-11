@@ -11,6 +11,17 @@ d 1.000000
 illum 2
 map_Kd Madera.jpeg
 
+newmtl Albedo.001
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd albedo2.jpeg
+map_Ns bark 2_Roughness.png
+map_refl albedo2.jpeg
+
 newmtl Cercado2
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
@@ -29,7 +40,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd Vinilopintado.jpeg
+map_Kd bark 2_Roughness.png
 
 newmtl Partedeltecho
 Ns 250.000000
@@ -102,28 +113,6 @@ d 1.000000
 illum 2
 map_Kd Pastoterreno.jpeg
 
-newmtl bark_2_mat
-Ka 1.000000 1.000000 1.000000
-Kd 0.800000 0.800000 0.800000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.450000
-d 1.000000
-illum 2
-map_Ns -s 2 2 1 bark 2_Roughness.png
-map_refl -s 2 2 1 bark 2 color.png
-map_Bump -s 2 2 1 -bm 0.500000 bark 2_Normal_OpenGL.png
-
-newmtl leaf_4_mat
-Ns 360.000000
-Ka 1.000000 1.000000 1.000000
-Kd 0.800000 0.800000 0.800000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.000000
-d 1.000000
-illum 2
-
 newmtl plants_atlas_mat
 Ns 360.000000
 Ka 1.000000 1.000000 1.000000
@@ -133,14 +122,3 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
-
-newmtl Albedo.001
-Ka 1.000000 1.000000 1.000000
-Ks 0.500000 0.500000 0.500000
-Ke 0.000000 0.000000 0.000000
-Ni 1.500000
-d 1.000000
-illum 2
-map_Kd albedo2.jpeg
-map_Ns bark 2_Roughness.png
-map_refl albedo2.jpeg

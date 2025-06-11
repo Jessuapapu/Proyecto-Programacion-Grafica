@@ -60,9 +60,10 @@ def main():
    
     iluminacion.init_lighting()
 
-    glutDisplayFunc(iluminacion.display)
-    glutIdleFunc(iluminacion.idle)
-    glutReshapeFunc(iluminacion.reshape)
+    #glutDisplayFunc(iluminacion.display)
+    
+    #glutIdleFunc(iluminacion.idle)
+    #glutReshapeFunc(iluminacion.reshape)
     
     #glutMainLoop()
 
@@ -85,15 +86,15 @@ def main():
 
         # Simulación del tiempo: cada 5 segundos = 1 hora
         segundos = pygame.time.get_ticks() / 1000
-        horas = int((segundos % 120) // 1)
+        horas = int((segundos % 120) // 0.5)
 
         # Cambio de estado día/noche solo si cambia la hora
-        if horas != ultima_hora:
+        """if horas != ultima_hora:
             ultima_hora = horas
             if horas == 6:
                 esDia = True
             elif horas == 18:
-                esDia = False
+                esDia = False"""
 
         keys = pygame.key.get_pressed()
 
@@ -167,12 +168,12 @@ def main():
         )
 
         # Dibujar Skybox según hora
-        SkyBoxes.draw(esDia)
+        SkyBoxes.draw(True)
 
         #Iluminacion
         iluminacion.update_light()
         
-        iluminacion.draw_manual_cube()
+        iluminacion.draw_light_source(3)
       
         # Dibujar escena
         Hacienda.DibujarEscena()
