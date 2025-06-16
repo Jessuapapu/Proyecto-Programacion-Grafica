@@ -60,13 +60,6 @@ def main():
    
     iluminacion.init_lighting()
 
-    #glutDisplayFunc(iluminacion.display)
-    
-    #glutIdleFunc(iluminacion.idle)
-    #glutReshapeFunc(iluminacion.reshape)
-    
-    #glutMainLoop()
-
     clock = pygame.time.Clock()
     running = True
 
