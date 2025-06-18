@@ -44,12 +44,15 @@ class Modelos:
                 if line.startswith('v '):
                     parts = line.strip().split()[1:]
                     self.vertices.append([float(x) for x in parts])
+                
                 elif line.startswith('vt '):
                     parts = line.strip().split()[1:]
                     self.texcoords.append([float(x) for x in parts])
+               
                 elif line.startswith('usemtl '):
                     current = line.split()[1]
                     self.groups.setdefault(current, [])
+                
                 elif line.startswith('f '):
                     face = []
                     for vert in line.strip().split()[1:]:
