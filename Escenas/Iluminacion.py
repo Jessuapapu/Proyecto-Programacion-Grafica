@@ -43,10 +43,12 @@ def init_lighting():
     glEnable(GL_LIGHT0)
     glShadeModel(GL_SMOOTH)
 
+    # Bajar luz ambiental global
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
     # Luz ambiental fuerte para “rellenar” sombras
-    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.0, 0.0, 0.0, 1.0])
+    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
     # Material base
-    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.7, 0.7, 0.7, 1.0])
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.3, 0.3, 0.3, 1.0])
 
 
 def draw_manual_cube(size=1.0):
