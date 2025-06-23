@@ -113,6 +113,8 @@ class Menu:
             "- Vanessa de los Angeles Mercado Ortega",
             "- Alberth Hernan Izaguirre Espinoza",
             "Grupo: 3T1-COMS",
+            "Creditos especiales:",
+            "Horse creados por: evgeney24 (https://sketchfab.com/evgeney24)",
             "REGRESAR"
         ], self.clear_panel)
 
