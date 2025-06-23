@@ -3,7 +3,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 # configurable parameters
-CUBE_Y         = 50.0          # Altura del foco
+CUBE_Y         = 100.0          # Altura del foco
 DAY_INTENS     = 10.0          # Mucho más brillo en el día
 NIGHT_INTENS   = 1.0           # Luz tenue en la noche
 DAY_START_HR   = 6
@@ -44,7 +44,7 @@ def init_lighting():
     glShadeModel(GL_SMOOTH)
 
     # Luz ambiental fuerte para “rellenar” sombras
-    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
+    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.0, 0.0, 0.0, 1.0])
     # Material base
     glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, [0.7, 0.7, 0.7, 1.0])
 
@@ -76,5 +76,5 @@ def draw_light_source(size=0.5):
     glMaterialfv(GL_FRONT, GL_EMISSION, [current_intensity]*3 + [1.0])
     draw_manual_cube(size)
     # Reset emisión
-    glMaterialfv(GL_FRONT, GL_EMISSION, [0.0, 0.0, 0.0, 1.0])
+    glMaterialfv(GL_FRONT, GL_EMISSION, [0.2, 0.2, 0.2, 1.0])
     glPopMatrix()
