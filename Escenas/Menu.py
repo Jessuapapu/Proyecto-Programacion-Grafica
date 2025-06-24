@@ -1,7 +1,9 @@
 import pygame
 import sys
+import os
 from Clases import Joycon, Botones, Sliders, Paneles
 from Audio import Audios  # <-- Importar controlador de audio
+
 
 # Resolución base y escalado
 INTERNAL_WIDTH, INTERNAL_HEIGHT = 704, 384
@@ -107,16 +109,14 @@ class Menu:
 
     def show_credits(self):
         self.active_panel = Paneles.Panel([
-            "Proyecto de semestre",
-            "Simulación de la Hacienda San Jacinto",
-            "Integrantes:",
-            "- Jessua Rene Solis Juarez",
-            "- Kyrsa Jolieth Hernandez Roque",
-            "- Vanessa de los Angeles Mercado Ortega",
-            "- Alberth Hernan Izaguirre Espinoza",
+            "Proyecto de semestre: Simulación de la Hacienda San Jacinto",
+            "Integrantes: Solis Juarez Jessua Rene",
+            "- Hernandez Roque Kyrsa Jolieth",
+            "- Mercado Ortega Vanessa de los Angeles",
+            "- Izaguirre Espinoza Alberth Hernan",
             "Grupo: 3T1-COMS",
             "Creditos especiales:",
-            "Horse creados por: evgeney24 (https://sketchfab.com/evgeney24)",
+            "Horse C.por: evgeney24 (https://sketchfab.com/evgeney24)",
             "REGRESAR"
         ], self.clear_panel)
 
@@ -147,12 +147,20 @@ class Menu:
 
 def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=True, velocidad_inicial=2.0):
     pygame.init()
+    pygame.mixer.init()  # Inicializa mixer explícitamente
 
-      #Inicializar música de fondo
+    # Música del menú
     musica = Audios.Musica()
-    musica.cargar_musica("menu", "Recursos/Sonidos/indian-pacific-271.mp3")  #archivo de música
-    musica.reproducir_musica("menu", bucle=True)
+    ruta_musica = "Recursos/Sonidos/indian-pacific-271.mp3"
+    if not os.path.exists(ruta_musica):
+        print(f"ERROR: No se encontró la música en {ruta_musica}")
+    else:
+        print(f" Música encontrada: {ruta_musica}")
+        musica.cargar_musica("menu", "indian-pacific-271.mp3")  # Se usa solo el nombre aquí
+        musica.reproducir_musica("menu", bucle=True)
+        pygame.mixer.music.set_volume(1.0)
 
+    # Configuración inicial
     sensibilidad = sensibilidad_inicial
     sonido = 3 if sonido_inicial else 0
     velocidad = velocidad_inicial
@@ -178,12 +186,17 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 click = True
 
+        # Ajustar volumen con slider
+        pygame.mixer.music.set_volume(menu.slider_sonido.value / 3)
+
+        # Dibujar menú
         menu.draw(mouse_pos, click)
         scaled_surface = pygame.transform.scale(internal_surface, (WINDOW_WIDTH, WINDOW_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
         clock.tick(60)
-        #  Detener música antes de salir del menú
+
+    # Detener música antes de salir al juego
     musica.detener_musica()
     pygame.quit()
 

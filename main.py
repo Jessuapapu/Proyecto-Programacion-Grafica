@@ -81,6 +81,12 @@ def main():
     running = True
 
     # Reproducir música de fondo
+    # Variables para ciclo día/noche
+    esDia = False
+    ultima_hora = -1
+
+    # Sonido
+  
     sonido.reproducir_musica("musica1", True)
 
     while running:
