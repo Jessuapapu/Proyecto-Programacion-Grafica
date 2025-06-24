@@ -45,6 +45,15 @@ class Skybox:
             except Exception as e:
                 print(f"Error cargando {path}: {e}")
 
+    def collides(self, pos, buffer=0.1):
+        """
+        Devuelve True si la posición 'pos' ([x, y, z]) está fuera del cubo del skybox.
+        El parámetro 'buffer' añade una holgura antes de la frontera.
+        """
+        x, y, z = pos
+        limit = self.size - buffer
+        return abs(x) > limit or abs(y) > limit or abs(z) > limit
+
     def draw(self, modo_dia=True):
         size = self.size
         glPushMatrix()
