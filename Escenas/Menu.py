@@ -1,6 +1,7 @@
 import pygame
 import sys
 from Clases import Joycon, Botones, Sliders, Paneles
+from Audio import Audios  # <-- Importar controlador de audio
 
 # Resolución base y escalado
 INTERNAL_WIDTH, INTERNAL_HEIGHT = 704, 384
@@ -50,6 +51,7 @@ class SettingsPanel:
         surface.blit(text, text_rect)
 
         pygame.mixer.music.set_volume(self.sliders["sonido"].value / 3)
+       
 
         if click:
             mouse_rect = pygame.Rect(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE, 1, 1)
@@ -146,6 +148,11 @@ class Menu:
 def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=True, velocidad_inicial=2.0):
     pygame.init()
 
+      #Inicializar música de fondo
+    musica = Audios.Musica()
+    musica.cargar_musica("menu", "Recursos/Sonidos/indian-pacific-271.mp3")  #archivo de música
+    musica.reproducir_musica("menu", bucle=True)
+
     sensibilidad = sensibilidad_inicial
     sonido = 3 if sonido_inicial else 0
     velocidad = velocidad_inicial
@@ -176,7 +183,8 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
         screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
         clock.tick(60)
-
+        #  Detener música antes de salir del menú
+    musica.detener_musica()
     pygame.quit()
 
     return {
