@@ -3,7 +3,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 # configurable parameters
-CUBE_Y         = 100.0          # Altura del foco
+CUBE_Y         = 150.0          # Altura del foco
 DAY_INTENS     = 10.0          # Mucho más brillo en el día
 NIGHT_INTENS   = 1.0           # Luz tenue en la noche
 DAY_START_HR   = 6
@@ -11,7 +11,7 @@ DAY_END_HR     = 18
 FADE_SPEED     = 0.1           # Transición más rápida
 
 # Posición fija del foco: w=1.0 → luz puntual
-light_pos = [0.0, CUBE_Y, 0.0, 1.0]
+light_pos = [-20.0, CUBE_Y, -250.0, 1.0]
 current_intensity = DAY_INTENS
 
 

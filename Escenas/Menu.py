@@ -129,6 +129,7 @@ class Menu:
             "D - Mover a la derecha",
             "Joystick izquierdo - Movimiento",
             "Joystick derecho - Cámara",
+            "shift - baja , Espacio - Sube",
             "REGRESAR"
         ], self.clear_panel)
 
