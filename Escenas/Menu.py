@@ -147,6 +147,8 @@ class Menu:
 
 def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=True, velocidad_inicial=2.0):
     pygame.init()
+    pygame.mixer.init()  # Inicializa mixer explícitamente
+
 
       #Inicializar música de fondo
     musica = Audios.Musica()
@@ -177,7 +179,8 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
                 control.desactivar()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 click = True
-
+        pygame.mixer.music.set_volume(menu.slider_sonido.value / 3)
+        
         menu.draw(mouse_pos, click)
         scaled_surface = pygame.transform.scale(internal_surface, (WINDOW_WIDTH, WINDOW_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
