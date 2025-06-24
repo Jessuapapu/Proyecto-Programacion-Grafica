@@ -153,9 +153,9 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
     musica = Audios.Musica()
     ruta_musica = "Recursos/Sonidos/indian-pacific-271.mp3"
     if not os.path.exists(ruta_musica):
-        print(f"❌ ERROR: No se encontró la música en {ruta_musica}")
+        print(f"ERROR: No se encontró la música en {ruta_musica}")
     else:
-        print(f"✅ Música encontrada: {ruta_musica}")
+        print(f" Música encontrada: {ruta_musica}")
         musica.cargar_musica("menu", "indian-pacific-271.mp3")  # Se usa solo el nombre aquí
         musica.reproducir_musica("menu", bucle=True)
         pygame.mixer.music.set_volume(1.0)
