@@ -4,6 +4,14 @@ import os
 from Clases import Joycon, Botones, Sliders, Paneles
 from Audio import Audios  # <-- Importar controlador de audio
 
+# Ruta base dinámica (soporte para .exe y ejecución local)
+if getattr(sys, 'frozen', False):
+    BASE_PATH = sys._MEIPASS
+else:
+    BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Debug opcional
+# print("BASE_PATH =", BASE_PATH)
 
 # Resolución base y escalado
 INTERNAL_WIDTH, INTERNAL_HEIGHT = 704, 384
@@ -20,14 +28,15 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Consolas", 15, bold=True)
 
 # Fondo
-background_img = pygame.image.load("Recursos/Imagenes/imagen.jpg").convert()
+background_path = os.path.join(BASE_PATH, "Recursos", "Imagenes", "imagen.jpg")
+background_img = pygame.image.load(background_path).convert()
 background_img = pygame.transform.scale(background_img, (INTERNAL_WIDTH, INTERNAL_HEIGHT))
 
 
 class SettingsPanel:
     def __init__(self, sliders, back_button, close_callback, control: Joycon.Joycon):
-        self.sliders = sliders  # Diccionario solo con sliders
-        self.back_button = back_button  # Botón "REGRESAR"
+        self.sliders = sliders
+        self.back_button = back_button
         self.close_callback = close_callback
         self.control = control
         self.rect = pygame.Rect((INTERNAL_WIDTH - 500) // 2, (INTERNAL_HEIGHT - 300) // 2, 500, 300)
@@ -36,11 +45,9 @@ class SettingsPanel:
         pygame.draw.rect(surface, (103, 77, 64), self.rect)
         pygame.draw.rect(surface, (255, 255, 255), self.rect, 2)
 
-        # Dibujar sliders
         for slider in self.sliders.values():
             slider.draw(surface, mouse_pos, click)
 
-        # Dibujar botón REGRESAR
         if self.back_button:
             self.back_button.draw(surface, mouse_pos, click, (103, 77, 64), (133, 107, 94))
 
@@ -53,7 +60,6 @@ class SettingsPanel:
         surface.blit(text, text_rect)
 
         pygame.mixer.music.set_volume(self.sliders["sonido"].value / 3)
-       
 
         if click:
             mouse_rect = pygame.Rect(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE, 1, 1)
@@ -67,15 +73,13 @@ class Menu:
         self.active_panel = None
         self.control = control
 
-        # Guardar valores simples
         self.sonido = sonido
         self.sensibilidad = sensibilidad
         self.velocidad = velocidad
 
-        # Crear sliders
         self.slider_sonido = Sliders.Slider("sonido", "SONIDO", (300, 70), 0, 3, 1, self.sonido)
         self.slider_sensibilidad = Sliders.Slider("sensibilidad", "SENSIBILIDAD", (300, 130), 0.0, 2.0, 0.1, self.sensibilidad)
-        self.slider_velocidad = Sliders.Slider("velocidad", "VELOCIDAD", (300, 180), 1,150, 1, self.velocidad)
+        self.slider_velocidad = Sliders.Slider("velocidad", "VELOCIDAD", (300, 180), 1, 150, 1, self.velocidad)
 
         self.sliders = {
             "sonido": self.slider_sonido,
@@ -83,10 +87,8 @@ class Menu:
             "velocidad": self.slider_velocidad
         }
 
-        # Botón regresar separado
         self.regresar_button = Botones.Button("REGRESAR", (300, 250), self.clear_panel, 150, 30)
 
-        # Botones del menú principal
         self.buttons = [
             Botones.Button("INICIO", (60, 60), self.start),
             Botones.Button("CONFIGURACION", (60, 120), self.toggle_settings),
@@ -100,7 +102,6 @@ class Menu:
 
     def toggle_settings(self):
         self.control.JoyStick = pygame.joystick.Joystick(0) if pygame.joystick.get_count() > 0 else None
-        # Pasa sliders y botón regresar por separado
         self.active_panel = SettingsPanel(self.sliders, self.regresar_button, self.clear_panel, self.control)
 
     def exit_game(self):
@@ -148,20 +149,18 @@ class Menu:
 
 def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=True, velocidad_inicial=2.0):
     pygame.init()
-    pygame.mixer.init()  # Inicializa mixer explícitamente
+    pygame.mixer.init()
 
-    # Música del menú
     musica = Audios.Musica()
-    ruta_musica = "Recursos/Sonidos/indian-pacific-271.mp3"
+    ruta_musica = os.path.join(BASE_PATH, "Recursos", "Sonidos", "indian-pacific-271.mp3")
     if not os.path.exists(ruta_musica):
         print(f"ERROR: No se encontró la música en {ruta_musica}")
     else:
-        print(f" Música encontrada: {ruta_musica}")
-        musica.cargar_musica("menu", "indian-pacific-271.mp3")  # Se usa solo el nombre aquí
+        print(f"Música encontrada: {ruta_musica}")
+        musica.cargar_musica("menu", ruta_musica)
         musica.reproducir_musica("menu", bucle=True)
         pygame.mixer.music.set_volume(1.0)
 
-    # Configuración inicial
     sensibilidad = sensibilidad_inicial
     sonido = 3 if sonido_inicial else 0
     velocidad = velocidad_inicial
@@ -187,17 +186,14 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 click = True
 
-        # Ajustar volumen con slider
         pygame.mixer.music.set_volume(menu.slider_sonido.value / 3)
 
-        # Dibujar menú
         menu.draw(mouse_pos, click)
         scaled_surface = pygame.transform.scale(internal_surface, (WINDOW_WIDTH, WINDOW_HEIGHT))
         screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
         clock.tick(60)
 
-    # Detener música antes de salir al juego
     musica.detener_musica()
     pygame.quit()
 

@@ -1,5 +1,17 @@
+import os
+import sys
 from OpenGL.GL import *
 from PIL import Image
+
+# Ruta base dinámica (soporte para .exe y script)
+if getattr(sys, 'frozen', False):
+    BASE_PATH = sys._MEIPASS
+else:
+    BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Función auxiliar para construir ruta absoluta
+def recurso_path(*partes):
+    return os.path.join(BASE_PATH, *partes)
 
 class Skybox:
     def __init__(self, size=50.0):
@@ -8,21 +20,21 @@ class Skybox:
         self.textures_noche = {}
 
         self.faces_dia = {
-            "right": "Recursos/Imagenes/Skybox/Right_5.png",
-            "left": "Recursos/Imagenes/Skybox/Left_2.png",
-            "top": "Recursos/Imagenes/Skybox/Up_0.png",
-            "bottom": "Recursos/Imagenes/Skybox/Down_1.png",
-            "front": "Recursos/Imagenes/Skybox/Front_4.png",
-            "back": "Recursos/Imagenes/Skybox/Back_3.png"
+            "right": recurso_path("Recursos", "Imagenes", "Skybox", "Right_5.png"),
+            "left": recurso_path("Recursos", "Imagenes", "Skybox", "Left_2.png"),
+            "top": recurso_path("Recursos", "Imagenes", "Skybox", "Up_0.png"),
+            "bottom": recurso_path("Recursos", "Imagenes", "Skybox", "Down_1.png"),
+            "front": recurso_path("Recursos", "Imagenes", "Skybox", "Front_4.png"),
+            "back": recurso_path("Recursos", "Imagenes", "Skybox", "Back_3.png")
         }
 
         self.faces_noche = {
-            "right": "Recursos/Imagenes/Skybox/PolygonSciFiSpace_Skybox_01_Right_23.png",
-            "left": "Recursos/Imagenes/Skybox/PolygonSciFiSpace_Skybox_01_Left_20.png",
-            "top": "Recursos/Imagenes/Skybox/PolygonSciFiSpace_Skybox_01_Up_18.png",
-            "bottom": "Recursos/Imagenes/Skybox/PolygonSciFiSpace_Skybox_01_Down_19.png",
-            "front": "Recursos/Imagenes/Skybox/PolygonSciFiSpace_Skybox_01_Front_22.png",
-            "back": "Recursos/Imagenes/Skybox/PolygonSciFiSpace_Skybox_01_Back_21.png"
+            "right": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Right_23.png"),
+            "left": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Left_20.png"),
+            "top": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Up_18.png"),
+            "bottom": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Down_19.png"),
+            "front": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Front_22.png"),
+            "back": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Back_21.png")
         }
 
         self.load_textures(self.faces_dia, self.textures_dia)
@@ -43,13 +55,9 @@ class Skybox:
 
                 textures_dict[name] = texture_id
             except Exception as e:
-                print(f"Error cargando {path}: {e}")
+                print(f"Error cargando textura '{path}': {e}")
 
     def collides(self, pos, buffer=0.1):
-        """
-        Devuelve True si la posición 'pos' ([x, y, z]) está fuera del cubo del skybox.
-        El parámetro 'buffer' añade una holgura antes de la frontera.
-        """
         x, y, z = pos
         limit = self.size - buffer
         return abs(x) > limit or abs(y) > limit or abs(z) > limit

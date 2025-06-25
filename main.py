@@ -4,7 +4,7 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import glutInit
-import numpy as np
+
 
 import Clases.Camara as Camara
 import Clases.Util as Util
@@ -15,7 +15,7 @@ from Escenas import Menu as menu
 from Audio.Sonido import sonido
 import Escenas.Iluminacion as iluminacion
 
-
+# Para la normalizacion de la camar
 def init_opengl(width, height):
     # Ajusta el viewport a toda la ventana
     glViewport(0, 0, width, height)
@@ -98,15 +98,17 @@ def main():
 
          # Simulación del tiempo: cada 5 segundos = 1 hora
         segundos = pygame.time.get_ticks() / 1000
-        horas = int((segundos % 120) // 0.5)
-        
+        horas = int((segundos % 120) // 5) % 24
+
         # Cambio de estado día/noche solo si cambia la hora
-        """if horas != ultima_hora:
+        if horas != ultima_hora:
             ultima_hora = horas
-            if horas == 6:
+
+            if 6 <= horas < 18:
                 esDia = True
-            elif horas == 18:
-                esDia = False"""
+            else:
+                esDia = False
+        print(horas)
         
         keys = pygame.key.get_pressed()
 
@@ -199,8 +201,8 @@ def main():
             0, 1, 0
         )
 
-        # Dibujar skybox (como en el código original)
-        SkyBoxes.draw(True)
+        
+        SkyBoxes.draw(esDia)
 
         # Iluminación
         iluminacion.update_light()
