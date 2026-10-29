@@ -28,7 +28,7 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Consolas", 15, bold=True)
 
 # Fondo
-background_path = os.path.join(BASE_PATH, "Recursos", "Imagenes", "imagen.jpg")
+background_path = os.path.join(BASE_PATH, "Recursos", "Imagenes", "hacienda.jpeg")
 background_img = pygame.image.load(background_path).convert()
 background_img = pygame.transform.scale(background_img, (INTERNAL_WIDTH, INTERNAL_HEIGHT))
 
@@ -59,7 +59,7 @@ class SettingsPanel:
         text_rect = text.get_rect(center=(self.rect.centerx, 250 - 15))
         surface.blit(text, text_rect)
 
-        pygame.mixer.music.set_volume(self.sliders["sonido"].value / 3)
+        pygame.mixer.music.set_volume(self.sliders["sonido"].value / 10.0) #escla del 1 al 10 para el volumen
 
         if click:
             mouse_rect = pygame.Rect(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE, 1, 1)
@@ -111,13 +111,14 @@ class Menu:
     def show_credits(self):
         self.active_panel = Paneles.Panel([
             "Proyecto de semestre: Simulación de la Hacienda San Jacinto",
-            "Integrantes: Solis Juarez Jessua Rene",
+            "Integrantes: ",
             "- Hernandez Roque Kyrsa Jolieth",
             "- Mercado Ortega Vanessa de los Angeles",
             "- Izaguirre Espinoza Alberth Hernan",
-            "Grupo: 3T1-COMS",
+            #"Grupo: 4T1-COMS",
             "Creditos especiales:",
             "Horse C.por: evgeney24 (https://sketchfab.com/evgeney24)",
+            "Jessua Rene Solis Juarez, contribuyente"
             "REGRESAR"
         ], self.clear_panel)
 
@@ -147,7 +148,7 @@ class Menu:
                 btn.draw(internal_surface, mouse_pos, click, (103, 77, 64), (133, 107, 94))
 
 
-def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=True, velocidad_inicial=2.0):
+def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=5, velocidad_inicial=2.0):
     pygame.init()
     pygame.mixer.init()
 
@@ -159,10 +160,10 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
         print(f"Música encontrada: {ruta_musica}")
         musica.cargar_musica("menu", ruta_musica)
         musica.reproducir_musica("menu", bucle=True)
-        pygame.mixer.music.set_volume(1.0)
+        pygame.mixer.music.set_volume(sonido_inicial / 10.0)
 
     sensibilidad = sensibilidad_inicial
-    sonido = 3 if sonido_inicial else 0
+    sonido = sonido_inicial if isinstance(sonido_inicial, (int, float)) else 5
     velocidad = velocidad_inicial
 
     menu = Menu(control=control, sensibilidad=sensibilidad, sonido=sonido, velocidad=velocidad)
@@ -186,7 +187,7 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 click = True
 
-        pygame.mixer.music.set_volume(menu.slider_sonido.value / 3)
+        pygame.mixer.music.set_volume(menu.slider_sonido.value / 10.0)
 
         menu.draw(mouse_pos, click)
         scaled_surface = pygame.transform.scale(internal_surface, (WINDOW_WIDTH, WINDOW_HEIGHT))

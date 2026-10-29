@@ -4,8 +4,8 @@ from OpenGL.GLU import *
 
 # configurable parameters
 CUBE_Y         = 150.0          # Altura del foco
-DAY_INTENS     = 10.0          # Mucho más brillo en el día
-NIGHT_INTENS   = 1.0           # Luz tenue en la noche
+DAY_INTENS     = 60.0          # Mucho más brillo en el día
+NIGHT_INTENS   = 10.0           # Luz tenue en la noche
 DAY_START_HR   = 6
 DAY_END_HR     = 18
 FADE_SPEED     = 0.1           # Transición más rápida
@@ -26,15 +26,21 @@ def update_light():
     target = DAY_INTENS if is_daytime() else NIGHT_INTENS
     current_intensity += (target - current_intensity) * FADE_SPEED
 
+    #oajala funcione
+    if is_daytime():
+         diffuse_color = [current_intensity, current_intensity * 0.95, current_intensity * 0.85, 1.0]
+    else:
+        diffuse_color = [current_intensity * 1.0, current_intensity * 0.7, current_intensity * 0.5, 1.0] # Tono cálido/fuego
+
     # posición y color de la luz
     glLightfv(GL_LIGHT0, GL_POSITION, light_pos)
-    glLightfv(GL_LIGHT0, GL_DIFFUSE,  [current_intensity]*3 + [1.0])
-    glLightfv(GL_LIGHT0, GL_SPECULAR, [current_intensity]*3 + [1.0])
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,  diffuse_color)
+    glLightfv(GL_LIGHT0, GL_SPECULAR, [current_intensity *0.5 ]*2 + [1.0])
 
     # Atenuación mínima para que la luz alcance lejos
     glLightf(GL_LIGHT0, GL_CONSTANT_ATTENUATION,  1.0)
-    glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION,    0.005)
-    glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0005)
+    glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION,    0.001)
+    glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.0001)
 
 
 def init_lighting():
@@ -44,7 +50,7 @@ def init_lighting():
     glShadeModel(GL_SMOOTH)
 
     # Bajar luz ambiental global
-    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, [0.2, 0.2, 0.12, 2.0])
     # Luz ambiental fuerte para “rellenar” sombras
     glLightfv(GL_LIGHT0, GL_AMBIENT, [0.3, 0.3, 0.3, 1.0])
     # Material base
@@ -75,7 +81,7 @@ def draw_light_source(size=0.5):
     glPushMatrix()
     glTranslatef(light_pos[0], light_pos[1], light_pos[2])
     # Emisión para que el cubo se vea como foco brillante
-    glMaterialfv(GL_FRONT, GL_EMISSION, [current_intensity]*3 + [1.0])
+    glMaterialfv(GL_FRONT, GL_EMISSION, [current_intensity]*3 + [2.0])
     draw_manual_cube(size)
     # Reset emisión
     glMaterialfv(GL_FRONT, GL_EMISSION, [0.2, 0.2, 0.2, 1.0])

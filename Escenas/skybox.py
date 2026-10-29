@@ -29,12 +29,12 @@ class Skybox:
         }
 
         self.faces_noche = {
-            "right": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Right_23.png"),
-            "left": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Left_20.png"),
-            "top": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Up_18.png"),
-            "bottom": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Down_19.png"),
-            "front": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Front_22.png"),
-            "back": recurso_path("Recursos", "Imagenes", "Skybox", "PolygonSciFiSpace_Skybox_01_Back_21.png")
+            "right": recurso_path("Recursos", "Imagenes", "Skybox", "NocheRight.jpeg"),
+            "left": recurso_path("Recursos", "Imagenes", "Skybox", "NocheLeft.jpeg"),
+            "top": recurso_path("Recursos", "Imagenes", "Skybox", "Up_0.png"),
+            "bottom": recurso_path("Recursos", "Imagenes", "Skybox", "Down_1.png"),
+            "front": recurso_path("Recursos", "Imagenes", "Skybox", "NocheFront.jpeg"),
+            "back": recurso_path("Recursos", "Imagenes", "Skybox", "NocheBack.jpeg")
         }
 
         self.load_textures(self.faces_dia, self.textures_dia)

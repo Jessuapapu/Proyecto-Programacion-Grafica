@@ -44,4 +44,10 @@ Retrato = Modelo.Modelos(
     modelo_path("modelosObj", "colision_combined.obj")
 )
 
-ListHacienda = [Hacienda, Mesa, Armas, Caballo, Retrato]
+Arbolito = Modelo.Modelos(
+    modelo_path("modelosObj", "Arbolitos", "arbolito3.obj"),
+    modelo_path("modelosObj", "Arbolitos", "arbolito3.mtl"),
+    modelo_path("modelosObj", "colision_combined.obj")
+)
+
+ListHacienda = [Hacienda, Mesa, Armas, Caballo, Retrato, Arbolito]

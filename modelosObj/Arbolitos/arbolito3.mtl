@@ -1,0 +1,42 @@
+# Blender 5.2.2 LTS MTL File: 'arbolito.blend'
+# www.blender.org
+
+newmtl Bullets
+Ns 96.078415
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 0.000000
+illum 9
+map_Kd C:/Users/User/OneDrive/Documentos/Blender/k98_texture1.png
+
+newmtl Main
+Ns 1000.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Users/User/OneDrive/Documentos/Blender/k98_texture1.png
+
+newmtl Material.011
+Ns 159.999985
+Ka 1.000000 1.000000 1.000000
+Kd 0.334319 0.108373 0.014624
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+
+newmtl Material.012
+Ns 159.999985
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Material.002_baseColor.png
