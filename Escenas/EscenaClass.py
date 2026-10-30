@@ -7,6 +7,10 @@ class Escenas:
             Modelo.cargarmodelos()
              
     
+    def liberar(self):
+        for Modelo in self.Modelos:
+            Modelo.liberar()
+
     def DibujarEscena(self):
         for Modelo in self.Modelos:
             Modelo.draw()
