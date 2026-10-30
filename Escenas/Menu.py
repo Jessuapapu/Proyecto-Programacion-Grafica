@@ -21,7 +21,7 @@ WINDOW_WIDTH, WINDOW_HEIGHT = INTERNAL_WIDTH * SCALE, INTERNAL_HEIGHT * SCALE
 # Superficie base y ventana
 internal_surface = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption("Menú Mejorado Pixel Perfect")
+pygame.display.set_caption("Hacienda San Jacinto - Menú")
 clock = pygame.time.Clock()
 
 # Fuente
@@ -34,9 +34,10 @@ background_img = pygame.transform.scale(background_img, (INTERNAL_WIDTH, INTERNA
 
 
 class SettingsPanel:
-    def __init__(self, sliders, back_button, close_callback, control: Joycon.Joycon):
+    def __init__(self, sliders, back_button, close_callback, control: Joycon.Joycon, extra_buttons=()):
         self.sliders = sliders
         self.back_button = back_button
+        self.extra_buttons = list(extra_buttons)
         self.close_callback = close_callback
         self.control = control
         self.rect = pygame.Rect((INTERNAL_WIDTH - 500) // 2, (INTERNAL_HEIGHT - 300) // 2, 500, 300)
@@ -50,6 +51,12 @@ class SettingsPanel:
 
         if self.back_button:
             self.back_button.draw(surface, mouse_pos, click, (103, 77, 64), (133, 107, 94))
+
+        # Modo del cielo: ciclo día/noche o siempre de día
+        etiqueta = font.render("CIELO:", True, (255, 255, 255))
+        surface.blit(etiqueta, (120, 50))
+        for boton in self.extra_buttons:
+            boton.draw(surface, mouse_pos, click, (103, 77, 64), (133, 107, 94))
 
         control_text = (
             f"CONTROL: {self.control.JoyStick.get_name()}"
@@ -77,9 +84,9 @@ class Menu:
         self.sensibilidad = sensibilidad
         self.velocidad = velocidad
 
-        self.slider_sonido = Sliders.Slider("sonido", "SONIDO", (300, 70), 0, 3, 1, self.sonido)
-        self.slider_sensibilidad = Sliders.Slider("sensibilidad", "SENSIBILIDAD", (300, 130), 0.0, 2.0, 0.1, self.sensibilidad)
-        self.slider_velocidad = Sliders.Slider("velocidad", "VELOCIDAD", (300, 180), 1, 150, 1, self.velocidad)
+        self.slider_sonido = Sliders.Slider("sonido", "SONIDO", (300, 70), 0, 10, 1, self.sonido)
+        self.slider_sensibilidad = Sliders.Slider("sensibilidad", "SENSIBILIDAD", (300, 130), 0.1, 2.0, 0.1, self.sensibilidad)
+        self.slider_velocidad = Sliders.Slider("velocidad", "VELOCIDAD", (300, 180), 1, 20, 0.5, self.velocidad)
 
         self.sliders = {
             "sonido": self.slider_sonido,
@@ -88,6 +95,12 @@ class Menu:
         }
 
         self.regresar_button = Botones.Button("REGRESAR", (300, 250), self.clear_panel, 150, 30)
+
+        # Modo del cielo (se puede cambiar también desde el menú de pausa)
+        self.siempre_dia = False
+        self.boton_cielo = Botones.Button(
+            lambda: "SIEMPRE DE DIA" if self.siempre_dia else "CICLO DIA/NOCHE",
+            (120, 70), self.cambiar_cielo, 165, 30)
 
         self.buttons = [
             Botones.Button("INICIO", (60, 60), self.start),
@@ -100,9 +113,13 @@ class Menu:
     def start(self):
         self.start_game = True
 
+    def cambiar_cielo(self):
+        self.siempre_dia = not self.siempre_dia
+
     def toggle_settings(self):
         self.control.JoyStick = pygame.joystick.Joystick(0) if pygame.joystick.get_count() > 0 else None
-        self.active_panel = SettingsPanel(self.sliders, self.regresar_button, self.clear_panel, self.control)
+        self.active_panel = SettingsPanel(self.sliders, self.regresar_button, self.clear_panel, self.control,
+                                          [self.boton_cielo])
 
     def exit_game(self):
         pygame.quit()
@@ -118,20 +135,19 @@ class Menu:
             #"Grupo: 4T1-COMS",
             "Creditos especiales:",
             "Horse C.por: evgeney24 (https://sketchfab.com/evgeney24)",
-            "Jessua Rene Solis Juarez, contribuyente"
+            "Jessua Rene Solis Juarez, contribuyente",
             "REGRESAR"
         ], self.clear_panel)
 
     def show_help(self):
         self.active_panel = Paneles.Panel([
             "Controles del teclado:",
-            "W - Mover hacia arriba",
-            "S - Mover hacia abajo",
-            "A - Mover a la izquierda",
-            "D - Mover a la derecha",
+            "W - Avanzar         S - Retroceder",
+            "A - Izquierda       D - Derecha",
             "Joystick izquierdo - Movimiento",
             "Joystick derecho - Cámara",
-            "shift - baja , Espacio - Sube",
+            "Shift - Bajar       Espacio - Subir",
+            "ESC - Menu de pausa",
             "REGRESAR"
         ], self.clear_panel)
 
@@ -200,5 +216,7 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
 
     return {
         "Configuracion": (menu.slider_sensibilidad.value, menu.slider_velocidad.value),
+        "Volumen": menu.slider_sonido.value,
+        "SiempreDia": menu.siempre_dia,
         "ControlConfiguracion": control
     }
