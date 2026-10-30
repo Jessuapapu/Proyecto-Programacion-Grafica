@@ -35,4 +35,5 @@ class Slider:
         if click and pygame.Rect(x, y, self.width, self.height).collidepoint(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE):
             rel_x = (mouse_pos[0] // SCALE) - x
             new_value = self.min + (rel_x / self.width) * (self.max - self.min)
-            self.value = max(self.min, min(self.max, round(new_value / self.step) * self.step))
+            # round(..., 2) evita valores como 0.30000000000000004 en pantalla
+            self.value = round(max(self.min, min(self.max, round(new_value / self.step) * self.step)), 2)
