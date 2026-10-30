@@ -26,23 +26,53 @@ Built by students in their third semester of computer systems engineering, this 
 
 ### Run from Source
 
-1. Install required packages:
+1. Clone the repository **with Git LFS** (the `.obj` models are stored in LFS; without it the
+   files are only small text pointers and the scene cannot load):
 
 ```bash
+git lfs install
+git clone https://github.com/Jessuapapu/Proyecto-Programacion-Grafica.git
+cd Proyecto-Programacion-Grafica
+git lfs pull
+```
+
+2. (Recommended) create a virtual environment:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate      # Linux / macOS
+```
+
+3. Install the dependencies. If the original `pygame` package is installed, remove it first,
+   because it conflicts with `pygame-ce`:
+
+```bash
+pip uninstall -y pygame
 pip install -r requirements.txt
 ```
 
-2. Run the project:
+4. Run the project:
 
 ```bash
 python main.py
 ```
+
+#### Troubleshooting
+
+| Error | Cause / fix |
+|-------|-------------|
+| `Failed to build 'pygame'` / `No module named 'setuptools._distutils.msvccompiler'` | The original `pygame` has no installer for Python 3.14. Use `pygame-ce` (already in `requirements.txt`). |
+| `Invalid requirement` when running `pip install -r requirements.txt` | Old `requirements.txt` was saved as UTF-16. The current one is plain UTF-8. |
+| `NullFunctionError: glutInit` | Old versions called GLUT, which PyOpenGL does not ship on Windows. GLUT is no longer used. |
+| "... is a Git LFS pointer" | Run `git lfs install` and `git lfs pull`. |
 
 ### Run as Executable (.exe)
 
 To generate the Windows executable:
 
 ```bash
+pip install pyinstaller
 pyinstaller --onefile --windowed ^
 --add-data "Recursos;Recursos" ^
 --add-data "Audio;Audio" ^
@@ -62,17 +92,37 @@ dist/main.exe
 
 - WASD — Move
 - Mouse / Right joystick — Look around
+- Left joystick — Move
 - Shift / Space — Descend / Ascend
-- ESC — Exit
+- ESC / Start button — Pause menu (continue, settings: volume, sensitivity, speed and sky mode, exit)
 - Joystick — Supported
 
 ## 📦 Requirements
 
-- Python 3.11 or 3.12
-- Pygame ≥ 2.1
-- PyOpenGL
-- Pillow
-- PyInstaller
+- Python 3.10 – 3.15
+- pygame-ce ≥ 2.5.8 (drop-in replacement for Pygame, imported as `pygame`)
+- PyOpenGL ≥ 3.1.9
+- NumPy ≥ 1.26
+- Pillow ≥ 10.0
+- PyInstaller ≥ 6.0 (only to build the executable)
+- Git LFS (to download the 3D models)
+
+## 💡 Lighting
+
+- Continuous day/night cycle (5 s = 1 simulated hour, the tour starts at 9:00).
+- Sky mode selectable in the main menu settings or in the pause menu: day/night cycle or always day (fixed at 11:00).
+- Directional sun that rises, crosses the sky and sets, with warm light at sunrise/sunset.
+- Soft moonlight at night, sky fill light and hemispheric ambient light.
+- Atmospheric fog whose color follows the time of day; the day and night skyboxes blend smoothly.
+- Per-pixel lighting (GLSL 1.20). If the graphics card cannot compile the shader, the
+  fixed-function OpenGL lighting is used automatically.
+- All parameters (colors, intensities, cycle speed) are at the top of `Escenas/Iluminacion.py`.
+
+## 🌳 Trees
+
+Extra trees are instances of a single model (`modelosObj/Arbolitos/arbol.obj`), so they are loaded
+once on the GPU. Positions, rotation and size are listed in `POSICIONES_ARBOLES` inside
+`Escenas/Hacienda.py`; add or remove entries there. Trees have collision with the camera.
 
 ## 🎵 Credits
 
