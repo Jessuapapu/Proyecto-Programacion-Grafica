@@ -204,10 +204,12 @@ class Skybox:
         draw_face("top",    [(-size,  size, -size), ( size,  size, -size), ( size,  size,  size), (-size,  size,  size)])
         draw_face("bottom", [(-size, -size,  size), ( size, -size,  size), ( size, -size, -size), (-size, -size, -size)])
 
-    def draw(self, modo_dia=True, tinte=(1.0, 1.0, 1.0), centro=None):
+    def draw(self, modo_dia=True, tinte=(1.0, 1.0, 1.0), centro=None, giro=0.0):
         """modo_dia puede ser bool o un factor 0..1: con valores intermedios el cielo de
         día y el de noche se mezclan suavemente. 'centro' = posición de la cámara: el cielo
-        se dibuja alrededor de ella para que parezca infinitamente lejano."""
+        se dibuja alrededor de ella para que parezca infinitamente lejano. 'giro' (grados)
+        rota el cielo lentamente sobre el eje vertical: las nubes pintadas en el horizonte
+        también se desplazan."""
         factor = max(0.0, min(1.0, float(modo_dia)))
 
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -220,6 +222,8 @@ class Skybox:
         glPushMatrix()
         if centro is not None:
             glTranslatef(centro[0], centro[1], centro[2])
+        if giro:
+            glRotatef(giro, 0.0, 1.0, 0.0)
 
         r, g, b = tinte
         if factor < 1.0:

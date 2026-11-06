@@ -47,6 +47,7 @@ import Clases.Camara as Camara
 import Clases.Util as Util
 import Clases.Joycon as Joycon
 from Escenas import EscenaClass as Escenas, skybox
+from Escenas.Nubes import Nubes
 from Escenas import Hacienda as Hac
 from Escenas import Menu as menu
 from Escenas import Pausa
@@ -55,6 +56,7 @@ import Escenas.Iluminacion as iluminacion
 
 # Unidades por segundo que avanza la cámara por cada punto del slider "VELOCIDAD"
 FACTOR_VELOCIDAD = 5.0
+VELOCIDAD_GIRO_CIELO = 0.4    # grados por segundo que gira el cielo pintado (las nubes del horizonte)
 
 
 # Para la normalizacion de la camara
@@ -196,6 +198,7 @@ def main():
     Hacienda = Escenas.Escenas(Hac.ListHacienda)
     Hacienda.cargar()
     SkyBoxes = skybox.Skybox(250)
+    nubes = Nubes()
 
     # Iluminación
     iluminacion.init_lighting()
@@ -212,6 +215,7 @@ def main():
     tiempo_juego = 0.0      # segundos de juego (no avanza durante la pausa ni en "siempre de día")
     if siempre_dia:
         tiempo_juego = iluminacion.segundos_para_hora(iluminacion.HORA_SIEMPRE_DIA)
+    tiempo_nubes = 0.0      # el viento sigue también en "siempre de día"; se detiene en la pausa
     pygame.mouse.get_rel()  # descarta el movimiento acumulado durante la carga
 
     def pausar():
@@ -227,6 +231,8 @@ def main():
         dt = clock.tick(60) / 1000.0
         if not pausa.abierto and not pausa.siempre_dia:
             tiempo_juego += dt
+        if not pausa.abierto:
+            tiempo_nubes += dt
         camara.velocidad = velocidad * FACTOR_VELOCIDAD * dt
 
         # Ciclo día/noche continuo (cada 5 segundos = 1 hora simulada); se congela en la pausa.
@@ -301,8 +307,11 @@ def main():
         iluminacion.update_light(hora)
 
         # Cielo: mezcla suave entre día y noche + sol/luna (centrado en la cámara)
-        SkyBoxes.draw(iluminacion.estado['factor_dia'], iluminacion.estado['tinte_cielo'], camara.cam_pos)
+        SkyBoxes.draw(iluminacion.estado['factor_dia'], iluminacion.estado['tinte_cielo'], camara.cam_pos,
+                      giro=tiempo_nubes * VELOCIDAD_GIRO_CIELO)
         iluminacion.draw_light_source(camara.cam_pos)
+        # Nubes dinámicas movidas por el viento (pasan por delante del sol y la luna)
+        nubes.dibujar(tiempo_nubes, camara.cam_pos, iluminacion.estado)
 
         # Dibujar escena
         iluminacion.activar_shader()
@@ -318,6 +327,7 @@ def main():
 
     # Limpieza (los buffers se liberan mientras el contexto OpenGL sigue activo)
     Hacienda.liberar()
+    nubes.liberar()
     pausa.liberar()
     pygame.joystick.quit()
     sonido.cerrar_sonidos()

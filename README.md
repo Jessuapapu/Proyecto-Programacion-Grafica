@@ -158,6 +158,15 @@ Recreation of the museum room "Sala de los Héroes de la Batalla" (`Escenas/Muse
   red velvet and muzzle-loading rifles mounted inside the glass, with small labels.
 - Names, positions, images and display cases are in `modelosObj/Museo/museo.json`.
 
+## ☁️ Dynamic clouds
+
+`Escenas/Nubes.py` draws two procedural cloud layers (seamless fractal-noise texture generated at
+startup, no image files) on curved domes centred on the camera. The wind scrolls them at different
+speeds and directions, so they drift across the sky and pass in front of the sun and the moon. Their
+colour follows the time of day: white at noon, golden at sunrise/sunset and a dim blue-grey at night.
+The painted skybox also rotates slowly (`VELOCIDAD_GIRO_CIELO` in `main.py`), so the clouds on the
+horizon move too. Clouds keep moving in "always day" mode and stop while the pause menu is open.
+
 ## 🎵 Credits
 
 - Horse model by evgeney24: https://sketchfab.com/evgeney24
