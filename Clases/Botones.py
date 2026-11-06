@@ -1,9 +1,10 @@
+# boton del menu viejo (ya no se usa)
 import pygame
 
 pygame.init()
 font = pygame.font.SysFont("Consolas", 15, bold=True)
 
-# Resolución base y escalado
+# resolucion base y escalado
 INTERNAL_WIDTH, INTERNAL_HEIGHT = 704, 384
 SCALE = 2
 WINDOW_WIDTH, WINDOW_HEIGHT = INTERNAL_WIDTH * SCALE, INTERNAL_HEIGHT * SCALE
@@ -17,6 +18,7 @@ class Button:
         self.height = height
 
     def draw(self, surface, mouse_pos, click, bg, hover_bg):
+        # el mouse viene en coordenadas de la ventana, se divide entre SCALE
         x, y = self.pos
         rect = pygame.Rect(x, y, self.width, self.height)
         hovered = rect.collidepoint(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE)

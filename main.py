@@ -1,13 +1,14 @@
+# Hacienda San Jacinto - archivo principal
+# primero sale el menu y despues se abre la ventana de opengl con la escena
 import os
 import sys
 import subprocess
 
 
 def verificar_dependencias():
-    """Instala las librerías que falten usando el MISMO Python que ejecuta el juego.
-    Así se evita el error "No module named 'pygame'" cuando pip instaló los
-    paquetes en otra versión de Python."""
-    if getattr(sys, 'frozen', False):   # el .exe ya trae todo incluido
+    # instala lo que falte con el mismo python que corre el juego
+    # (si no, pip lo instala en otra version y da error de modulo)
+    if getattr(sys, 'frozen', False):   # el .exe ya trae todo
         return
     import importlib
     import importlib.util
@@ -24,7 +25,7 @@ def verificar_dependencias():
     if subprocess.call(python + ["pip", "--version"]) != 0:
         subprocess.check_call(python + ["ensurepip", "--upgrade"])
 
-    # El pygame original choca con pygame-ce (ambos se instalan en la carpeta "pygame")
+    # pygame y pygame-ce chocan porque los dos usan la carpeta pygame
     try:
         metadata.distribution("pygame")
         subprocess.call(python + ["pip", "uninstall", "-y", "pygame"])
@@ -54,39 +55,34 @@ from Escenas import Pausa
 from Audio.Sonido import sonido
 import Escenas.Iluminacion as iluminacion
 
-# Unidades por segundo que avanza la cámara por cada punto del slider "VELOCIDAD"
+# cuanto avanza la camara por cada punto de velocidad del menu
 FACTOR_VELOCIDAD = 5.0
-VELOCIDAD_GIRO_CIELO = 0.4    # grados por segundo que gira el cielo pintado (las nubes del horizonte)
+VELOCIDAD_GIRO_CIELO = 0.4    # grados por segundo que gira el cielo
 
 
-# Para la normalizacion de la camara
+# proyeccion en perspectiva segun el tamaño de la ventana
 def init_opengl(width, height):
-    height = max(1, height)  # evita división por cero al minimizar
-    # Ajusta el viewport a toda la ventana
+    height = max(1, height)  # por si la ventana se minimiza
     glViewport(0, 0, width, height)
-    # Configura la proyección con aspecto dinámico
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     gluPerspective(
-        45.0,            # campo de visión
-        width / height,  # relación de aspecto dinámica
-        0.1,             # plano cercano
-        700.0            # plano lejano
+        45.0,            # fov
+        width / height,
+        0.1,
+        700.0            # hasta donde se ve
     )
-    # Vuelve al modelview
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
-    # Habilita depth test
     glEnable(GL_DEPTH_TEST)
 
 
-# Altura mínima de la cámara sobre el suelo (al caminar sobre lomas la cámara sube sola)
+# la camara siempre queda a esta altura sobre el suelo
 ALTURA_MINIMA_SUELO = 2.0
 
 
 def mover(camara, escena, skybox_, nueva_pos):
-    """Mueve la cámara solo si la nueva posición no choca con la hacienda, con un
-    árbol ni sale del skybox. Nunca deja que la cámara quede bajo el terreno."""
+    # solo mueve la camara si no choca con la casa, los arboles, el museo o el borde del mapa
     suelo = Hac.Terreno.altura_en(nueva_pos[0], nueva_pos[2]) + ALTURA_MINIMA_SUELO
     if nueva_pos[1] < suelo:
         nueva_pos = [nueva_pos[0], suelo, nueva_pos[2]]
@@ -97,30 +93,30 @@ def mover(camara, escena, skybox_, nueva_pos):
 
 
 def capturar_raton(activo):
-    """En el juego el ratón queda atrapado e invisible; en la pausa se libera."""
+    # en el juego el mouse queda atrapado, en la pausa se suelta
     pygame.event.set_grab(activo)
     pygame.mouse.set_visible(not activo)
-    pygame.mouse.get_rel()  # descarta el movimiento acumulado
+    pygame.mouse.get_rel()  # limpia el movimiento acumulado
 
 
-# Botón "Start" / "Menu" del control (Xbox en SDL2) para pausar
+# boton start del control
 BOTON_PAUSA_JOYSTICK = 7
 
 
 def mover_camara(camara, Control, Hacienda, SkyBoxes):
-    """Movimiento con ratón, teclado y joystick (solo cuando el juego no está en pausa)."""
+    # mouse, teclado y control
     keys = pygame.key.get_pressed()
 
-    # Movimiento del mouse
+    # mouse
     mouse_dx, mouse_dy = pygame.mouse.get_rel()
     camara.cam_yaw += mouse_dx * camara.sensibilidad
     camara.cam_pitch -= mouse_dy * camara.sensibilidad
 
-    # Calcular vector lateral
+    # vector hacia la derecha de la camara
     r = Util.normalizar(Util.cross(camara.cam_target, camara.up))
     v = camara.velocidad
 
-    # Movimiento con teclado
+    # teclado
     if keys[K_w]:
         mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] + camara.cam_target[i] * v for i in range(3)])
     if keys[K_s]:
@@ -129,13 +125,13 @@ def mover_camara(camara, Control, Hacienda, SkyBoxes):
         mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] - r[i] * v for i in range(3)])
     if keys[K_d]:
         mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] + r[i] * v for i in range(3)])
-    # Subir y bajar cámara
+    # subir / bajar
     if keys[K_SPACE]:
         mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[0], camara.cam_pos[1] + v, camara.cam_pos[2]])
     if keys[K_LSHIFT] or keys[K_RSHIFT]:
         mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[0], camara.cam_pos[1] - v, camara.cam_pos[2]])
 
-    # Movimiento con joystick (escalado por el tiempo de cuadro)
+    # control
     if Control.JoyStick is not None:
         try:
             izq = Control.get_PalancaIzquierda()
@@ -151,14 +147,14 @@ def mover_camara(camara, Control, Hacienda, SkyBoxes):
         camara.cam_yaw += der[0] * Control.Sensi
         camara.cam_pitch -= der[1] * Control.Sensi
 
-    # Limitar pitch
+    # para que no se de vuelta la camara
     camara.cam_pitch = max(-89.0, min(89.0, camara.cam_pitch))
     camara.ActualizarTarget()
     camara.cam_target = Util.normalizar(camara.cam_target)
 
 
 def main():
-    # Inicializar controles
+    # zona muerta, sensibilidad, numero de control
     pygame.joystick.init()
     Control = Joycon.Joycon(0.3, 4, 0)
     resultados = menu.mostrar_menu(Control)
@@ -169,54 +165,53 @@ def main():
     siempre_dia = resultados.get("SiempreDia", False)
     Control = resultados["ControlConfiguracion"]
 
-    # Inicializar Pygame y OpenGL
-    # (no se usa GLUT: glutInit() fallaba en Windows porque PyOpenGL no incluye freeglut)
+    # pygame + opengl
+    # no usamos glut porque en windows daba error con glutInit
     pygame.init()
 
-    # El menú cierra pygame al terminar: los joysticks abiertos antes quedan inválidos
+    # el menu cierra pygame asi que hay que volver a abrir el control
     Control.__init__(Control.ZonaMuerta, Control.Sensi, 0, Control.IDV)
 
-    # Obtener resolución de la pantalla y permitir redimensionar
+    # pantalla completa con la resolucion del monitor
     info = pygame.display.Info()
     ancho, alto = info.current_w, info.current_h
     pygame.display.set_mode((ancho, alto), DOUBLEBUF | OPENGL | RESIZABLE)
     pygame.display.set_caption("Hacienda San Jacinto")
 
-    # Inicializar OpenGL con dimensiones actuales
     init_opengl(ancho, alto)
 
-    # Carga de sonidos
+    # sonidos
     sonido.cargar_efecto("Efecto_paso", "footstep.mp3")
 
-    # Configurar cámara
-    # Posición inicial frente al corredor de la hacienda (antes empezaba pegada a una pared)
+    # camara
+    # empieza frente al corredor
     camara = Camara.Camaras([0.0, 3.0, 45.0], 0.0, 0.0, velocidad, sensibilidad, [0.0, 1.0, 0.0])
     pygame.event.set_grab(True)
     pygame.mouse.set_visible(False)
 
-    # Cargar escenas
+    # cargar modelos
     Hacienda = Escenas.Escenas(Hac.ListHacienda)
     Hacienda.cargar()
     SkyBoxes = skybox.Skybox(250)
     nubes = Nubes()
 
-    # Iluminación
+    # luces
     iluminacion.init_lighting()
 
     clock = pygame.time.Clock()
     running = True
 
-    # Música de fondo con el volumen elegido en el menú
+    # musica con el volumen del menu
     sonido.reproducir_musica("musica1", True)
     if pygame.mixer.get_init():
         pygame.mixer.music.set_volume(volumen / 10.0)
 
     pausa = Pausa.MenuPausa(volumen, sensibilidad, velocidad, siempre_dia)
-    tiempo_juego = 0.0      # segundos de juego (no avanza durante la pausa ni en "siempre de día")
+    tiempo_juego = 0.0      # no avanza en pausa ni en modo siempre de dia
     if siempre_dia:
         tiempo_juego = iluminacion.segundos_para_hora(iluminacion.HORA_SIEMPRE_DIA)
-    tiempo_nubes = 0.0      # el viento sigue también en "siempre de día"; se detiene en la pausa
-    pygame.mouse.get_rel()  # descarta el movimiento acumulado durante la carga
+    tiempo_nubes = 0.0      # las nubes si se mueven en siempre de dia
+    pygame.mouse.get_rel()  # lo que se movio el mouse mientras cargaba
 
     def pausar():
         pausa.abrir()
@@ -227,7 +222,6 @@ def main():
         capturar_raton(True)
 
     while running:
-        # Control de tiempo
         dt = clock.tick(60) / 1000.0
         if not pausa.abierto and not pausa.siempre_dia:
             tiempo_juego += dt
@@ -235,18 +229,18 @@ def main():
             tiempo_nubes += dt
         camara.velocidad = velocidad * FACTOR_VELOCIDAD * dt
 
-        # Ciclo día/noche continuo (cada 5 segundos = 1 hora simulada); se congela en la pausa.
-        # En modo "siempre de día" la hora queda fija; al volver al ciclo continúa desde ahí.
+        # ciclo dia/noche, 5 segundos = 1 hora
+        # en siempre de dia la hora se queda fija
         if pausa.siempre_dia:
             tiempo_juego = iluminacion.segundos_para_hora(iluminacion.HORA_SIEMPRE_DIA)
         hora = iluminacion.hora_simulada(tiempo_juego)
 
-        # Eventos
+        # eventos
         for event in pygame.event.get():
             if event.type == QUIT:
                 running = False
 
-            # ESC abre / cierra el menú de pausa (ya no cierra el programa)
+            # ESC abre o cierra la pausa
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 if not pausa.abierto:
                     pausar()
@@ -258,11 +252,11 @@ def main():
                 else:
                     pausar()
 
-            # Si la ventana pierde el foco (Alt+Tab) el juego se pausa solo
+            # si se hace alt+tab se pausa
             elif event.type == pygame.WINDOWFOCUSLOST and not pausa.abierto:
                 pausar()
 
-            # Clics y arrastres dentro del menú de pausa
+            # mouse dentro del menu de pausa
             elif pausa.abierto and event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
                 accion = pausa.manejar_evento(event)
                 if accion == "continuar":
@@ -270,19 +264,19 @@ def main():
                 elif accion == "salir":
                     running = False
 
-            # Manejo de redimensionamiento: en pygame 2 no hace falta volver a llamar
-            # set_mode (hacerlo puede destruir el contexto OpenGL y las texturas)
+            # al cambiar el tamaño solo se ajusta el viewport
+            # (volver a llamar set_mode borra las texturas)
             elif event.type == VIDEORESIZE:
                 ancho, alto = event.w, event.h
                 init_opengl(ancho, alto)
 
-            # Reconexión de joystick
+            # control conectado / desconectado
             elif event.type == pygame.JOYDEVICEADDED:
                 Control.__init__(Control.ZonaMuerta, Control.Sensi, 0, Control.IDV)
             elif event.type == pygame.JOYDEVICEREMOVED:
                 Control.desactivar()
 
-        # Valores cambiados en la configuración de la pausa
+        # valores de la configuracion de la pausa
         velocidad = pausa.valores["velocidad"]
         camara.sensibilidad = pausa.valores["sensibilidad"]
         if pygame.mixer.get_init():
@@ -291,7 +285,7 @@ def main():
         if not pausa.abierto:
             mover_camara(camara, Control, Hacienda, SkyBoxes)
 
-        # Renderizado
+        # dibujar
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
@@ -303,29 +297,28 @@ def main():
             0, 1, 0
         )
 
-        # Iluminación (después de gluLookAt para que las luces queden fijas en el mundo)
+        # luces despues de gluLookAt para que queden fijas
         iluminacion.update_light(hora)
 
-        # Cielo: mezcla suave entre día y noche + sol/luna (centrado en la cámara)
+        # cielo, sol y luna
         SkyBoxes.draw(iluminacion.estado['factor_dia'], iluminacion.estado['tinte_cielo'], camara.cam_pos,
                       giro=tiempo_nubes * VELOCIDAD_GIRO_CIELO)
         iluminacion.draw_light_source(camara.cam_pos)
-        # Nubes dinámicas movidas por el viento (pasan por delante del sol y la luna)
+        # nubes
         nubes.dibujar(tiempo_nubes, camara.cam_pos, iluminacion.estado)
 
-        # Dibujar escena
+        # escena
         iluminacion.activar_shader()
         Hacienda.DibujarEscena()
         iluminacion.desactivar_shader()
 
-        # Menú de pausa encima de la escena congelada
+        # pausa encima de todo
         if pausa.abierto:
             pausa.dibujar(ancho, alto, hora)
 
-        # Actualizar pantalla
         pygame.display.flip()
 
-    # Limpieza (los buffers se liberan mientras el contexto OpenGL sigue activo)
+    # liberar memoria antes de cerrar
     Hacienda.liberar()
     nubes.liberar()
     pausa.liberar()

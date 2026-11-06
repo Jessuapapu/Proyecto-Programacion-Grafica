@@ -1,10 +1,5 @@
-"""
-Sala de los Héroes: bustos de bronce sobre pedestales de mármol con sus nombres,
-retratos enmarcados con fichas y un letrero, dentro de la casa hacienda.
-
-Todo se arma por código (estilo low-poly) a partir de modelosObj/Museo/museo.json,
-donde se pueden cambiar los nombres, las posiciones y las imágenes.
-"""
+# sala de los heroes: bustos, retratos, letrero y vitrinas
+# todo se arma con codigo usando los datos de museo.json
 import json
 import math
 import os
@@ -28,11 +23,12 @@ COLORES = {
     "Carton": (0.93, 0.91, 0.86),
 }
 
-ALTO_PEDESTAL = 3.4
+ALTO_PEDESTAL = 3.4     # altura del pedestal
 
 
-# ------------------------------------------------------------------ Texto y texturas
+# textos y texturas
 def _fuente(tam):
+    # busca una fuente que exista en la compu
     for nombre in FUENTES:
         for carpeta in CARPETAS_FUENTES:
             try:
@@ -46,8 +42,8 @@ def _fuente(tam):
 
 
 def _texto_centrado(img, lineas, color, y0, tam, interlineado=1.25, margen=24):
+    # escribe lineas centradas, si no caben baja el tamaño de la letra
     d = ImageDraw.Draw(img)
-    # Reduce la letra hasta que la línea más larga quepa en la imagen
     while True:
         f = _fuente(tam)
         mas_ancha = max(d.textbbox((0, 0), l, font=f)[2] - d.textbbox((0, 0), l, font=f)[0] for l in lineas)
@@ -64,7 +60,7 @@ def _texto_centrado(img, lineas, color, y0, tam, interlineado=1.25, margen=24):
 
 
 def _subir(img):
-    """Sube una imagen de PIL como textura (fila superior primero, igual que Modelo.py)."""
+    # sube una imagen de PIL como textura
     img = img.convert("RGBA")
     datos = img.tobytes()
     tex = glGenTextures(1)
@@ -83,10 +79,9 @@ def _subir(img):
     return tex
 
 
-# ------------------------------------------------------------------ Geometría
+# geometria
 def _quad(p0, p1, p2, p3, uv=((0, 1), (1, 1), (1, 0), (0, 0))):
-    """Cuadrilátero p0-p1-p2-p3 (antihorario visto de frente). uv por defecto:
-    p0 abajo-izq, p1 abajo-der, p2 arriba-der, p3 arriba-izq (imagen derecha)."""
+    # cuadrado con los 4 puntos en orden antihorario
     p = [np.asarray(v, float) for v in (p0, p1, p2, p3)]
     n = np.cross(p[1] - p[0], p[3] - p[0])
     n /= np.linalg.norm(n) + 1e-12
@@ -97,7 +92,7 @@ def _quad(p0, p1, p2, p3, uv=((0, 1), (1, 1), (1, 0), (0, 0))):
 
 
 def _caja(cx, cy, cz, sx, sy, sz, escala_uv=1.0):
-    """Caja con base en cy. Devuelve las 6 caras (N, 8)."""
+    # caja con la base en cy
     x0, x1, y0, y1, z0, z1 = cx - sx / 2, cx + sx / 2, cy, cy + sy, cz - sz / 2, cz + sz / 2
     u = escala_uv
     caras = [
@@ -112,6 +107,7 @@ def _caja(cx, cy, cz, sx, sy, sz, escala_uv=1.0):
 
 
 def _tris_a_datos(tris):
+    # triangulos a vertices de 8 valores
     tris = np.asarray(tris, np.float64)
     n = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
     n /= np.linalg.norm(n, axis=1)[:, None] + 1e-12
@@ -122,6 +118,7 @@ def _tris_a_datos(tris):
 
 
 def _transformar(datos, x, y, z, rot_grados):
+    # rotar en y y mover a x, y, z
     a = math.radians(rot_grados)
     c, s = math.cos(a), math.sin(a)
     R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]], np.float32)
@@ -132,9 +129,8 @@ def _transformar(datos, x, y, z, rot_grados):
 
 
 def _busto(carpeta, variante):
-    """Busto esculpido (ver Recursos/Herramientas/generar_bustos.py): malla suave con
-    normales por vértice. La coordenada u guarda la oclusión ambiental, que la textura
-    bronce.png convierte en pátina oscura en los huecos y bronce claro en lo saliente."""
+    # carga un busto de generar_bustos.py
+    # en u va la oclusion, la textura bronce.png la pinta mas oscura en los huecos
     d = np.load(os.path.join(carpeta, f"busto_{int(variante)}.npz"))
     v, n, ao, f = d["v"], d["n"], d["ao"], d["f"].ravel()
     out = np.zeros((len(f), 8), np.float32)
@@ -146,8 +142,7 @@ def _busto(carpeta, variante):
 
 
 def _pedestal():
-    """Pedestal de mármol: cuerpo algo más ancho arriba, zócalo y tapa. Base en el origen.
-    Devuelve (resto, frente) para poder ponerle al frente la textura con el nombre."""
+    # pedestal de marmol, devuelve el frente aparte para ponerle el nombre
     b, t, H = 0.66, 0.74, ALTO_PEDESTAL - 0.3
     y0 = 0.15
     frente = _quad((-b, y0, b), (b, y0, b), (t, y0 + H, t), (-t, y0 + H, t))
@@ -162,19 +157,22 @@ def _pedestal():
 
 
 class Museo:
+
     def __init__(self, carpeta):
         self.carpeta = carpeta
         self.modelo = None
         self.vidrio = None
-        self._obstaculos = []      # (x, z, radio, y_max)
-        self._cajas = []           # (x0, x1, z0, z1, y_max)
+        self._obstaculos = []      # x, z, radio, y_max
+        self._cajas = []           # x0, x1, z0, z1, y_max
 
     def cargarmodelos(self):
+        # lee museo.json y arma la sala
         with open(os.path.join(self.carpeta, "museo.json"), "r", encoding="utf-8") as f:
             cfg = json.load(f)
         piso = float(cfg.get("piso_y", -2.2))
         datos, colores, texturas = {}, dict(COLORES), {}
 
+        # geometria por material
         def agregar(mat, arr):
             datos.setdefault(mat, []).append(arr)
 
@@ -182,23 +180,24 @@ class Museo:
         texturas["Marmol"] = _subir(marmol)
         texturas["Bronce"] = _subir(Image.open(os.path.join(self.carpeta, "bronce.png")))
 
-        # ---------------- Bustos sobre pedestales
+        # bustos
         resto, frente = _pedestal()
         for i, b in enumerate(cfg.get("bustos", [])):
             x, z, rot = float(b["x"]), float(b["z"]), float(b.get("rot", 0))
             agregar("Marmol", _transformar(resto, x, piso, z, rot))
             mat = f"Placa_busto_{i}"
             agregar(mat, _transformar(frente, x, piso, z, rot))
+            # frente del pedestal con el nombre
             placa = marmol.resize((300, 670))
             _texto_centrado(placa, b["nombre"], (60, 42, 26), 60, 40, margen=20)
             texturas[mat] = _subir(placa)
             colores[mat] = (1.0, 1.0, 1.0)
-            # La base del busto esculpido está en y = 0.45
+            # la base del busto esta en y = 0.45
             agregar("Bronce", _transformar(_busto(self.carpeta, b.get("variante", i + 1)),
                                            x, piso + ALTO_PEDESTAL + 0.15 - 0.45, z, rot))
             self._obstaculos.append((x, z, 1.1, piso + ALTO_PEDESTAL + 2.5))
 
-        # ---------------- Retratos enmarcados con su ficha
+        # retratos con marco y ficha
         for i, r in enumerate(cfg.get("retratos", [])):
             img = Image.open(os.path.join(self.carpeta, r["imagen"])).convert("RGB")
             alto = float(r.get("alto", 3.0))
@@ -207,6 +206,7 @@ class Museo:
             mat = f"Retrato_{i}"
             texturas[mat] = _subir(img)
             colores[mat] = (1.0, 1.0, 1.0)
+            # se recorta un poco el borde de la foto
             w2, h2, m = ancho / 2, alto / 2, 0.03
             foto = _quad((-w2, -h2, 0.09), (w2, -h2, 0.09), (w2, h2, 0.09), (-w2, h2, 0.09),
                          ((m, 1 - m), (1 - m, 1 - m), (1 - m, m), (m, m)))
@@ -220,7 +220,7 @@ class Museo:
                 _caja(0, -h2, 0.01, ancho, alto, 0.06),
             ])
             agregar("Marco", _transformar(marco, x, y, z, rot))
-            # Ficha debajo del retrato
+            # ficha abajo del retrato
             ficha_mat = f"Ficha_{i}"
             fw, fh = 2.4, 0.62
             ficha = _quad((-fw / 2, -fh / 2, 0.05), (fw / 2, -fh / 2, 0.05), (fw / 2, fh / 2, 0.05), (-fw / 2, fh / 2, 0.05))
@@ -233,7 +233,7 @@ class Museo:
             texturas[ficha_mat] = _subir(tarjeta)
             colores[ficha_mat] = (1.0, 1.0, 1.0)
 
-        # ---------------- Letrero de la sala
+        # letrero
         t = cfg.get("titulo")
         if t:
             ancho = float(t.get("ancho", 12.0))
@@ -252,7 +252,7 @@ class Museo:
             agregar("Letrero", _transformar(q, x, y, z, rot))
             agregar("Marco", _transformar(_caja(0, -alto / 2 - 0.05, 0.02, ancho + 0.1, alto + 0.1, 0.06), x, y, z, rot))
 
-        # ---------------- Vitrinas con armas
+        # vitrinas
         vidrios = []
         colores.update({k: v for k, v in Vitrinas.COLORES.items() if k != "Vidrio"})
         for i, v in enumerate(cfg.get("vitrinas", [])):
@@ -273,11 +273,13 @@ class Museo:
                 agregar(mat, _quad(*esq))
             self._cajas.append(caja_col)
 
+        # subir todo y poner las texturas
         datos = {k: np.concatenate(v) for k, v in datos.items()}
         self.modelo = Modelos.desde_datos(datos, colores)
         for mat, tex in texturas.items():
             if mat in self.modelo.materiales:
                 self.modelo.materiales[mat]["tex_id"] = tex
+        # brillo de los metales y el marmol
         bronce = self.modelo.materiales.get("Bronce")
         if bronce:
             bronce["ks"] = [0.9, 0.75, 0.55]
@@ -289,6 +291,7 @@ class Museo:
             if mat in self.modelo.materiales:
                 self.modelo.materiales[mat]["ks"] = ks
                 self.modelo.materiales[mat]["ns"] = ns
+        # vidrio aparte porque es transparente
         if vidrios:
             self.vidrio = Modelos.desde_datos({"Vidrio": np.concatenate(vidrios)}, {"Vidrio": Vitrinas.COLORES["Vidrio"]})
             self.vidrio.materiales["Vidrio"]["alfa"] = 0.16
@@ -296,6 +299,7 @@ class Museo:
             self.vidrio.materiales["Vidrio"]["ns"] = 500.0
 
     def collides(self, punto):
+        # pedestales como circulos y vitrinas como rectangulos
         x, y, z = punto
         for ox, oz, r, ymax in self._obstaculos:
             if (x - ox) ** 2 + (z - oz) ** 2 < r * r and y < ymax:
@@ -310,7 +314,7 @@ class Museo:
             self.modelo.draw()
 
     def draw_transparente(self):
-        """Vidrios de las vitrinas: se dibujan al final, mezclados y sin escribir profundidad."""
+        # vidrios al final con blending y sin escribir profundidad
         if self.vidrio is None:
             return
         glPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT)

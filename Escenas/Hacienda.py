@@ -1,3 +1,4 @@
+# objetos de la escena de la hacienda
 import os
 import sys
 from Clases import Modelo
@@ -6,19 +7,17 @@ from Escenas.Terreno import Terreno as _Terreno
 from Escenas.Museo import Museo as _Museo
 from Escenas import Iluminacion
 
-# Ruta base dinámica
+# ruta base
 if getattr(sys, 'frozen', False):
     BASE_PATH = sys._MEIPASS
 else:
     BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-# Construcción de rutas para modelos
 def modelo_path(*relative_path):
     return os.path.join(BASE_PATH, *relative_path)
 
-# Solo la hacienda carga la malla de colisión (es la única que se consulta en main.py).
-# El terreno viejo ("Tereno") ya no se dibuja: lo reemplaza el terreno con relieve, y
-# colision_hacienda.obj es la colisión original sin ese suelo.
+# solo la hacienda usa malla de colision
+# el terreno viejo (Tereno) no se dibuja porque ahora hay terreno con relieve
 Hacienda = Modelo.Modelos(
     modelo_path("modelosObj", "Hacienda", "Hacienda.obj"),
     modelo_path("modelosObj", "Hacienda", "Hacienda.mtl"),
@@ -47,19 +46,19 @@ Retrato = Modelo.Modelos(
     modelo_path("modelosObj", "Retratos", "Marcofotos.mtl")
 )
 
-# De arbolito3.obj solo queda el rifle que estaba dentro del archivo; sus árboles
-# viejos se reemplazaron por árboles low-poly nuevos en los mismos lugares.
+# de este obj solo dejamos el rifle, los arboles se cambiaron por los low poly
 Arbolito = Modelo.Modelos(
     modelo_path("modelosObj", "Arbolitos", "arbolito3.obj"),
     modelo_path("modelosObj", "Arbolitos", "arbolito3.mtl"),
     excluir_materiales=("Material.011", "Material.012"),
 )
 
-# Terreno con relieve y bosque low-poly (generados con Recursos/Herramientas/generar_mapa.py)
+# terreno y bosque (se generan con generar_mapa.py)
 Terreno = _Terreno(modelo_path("modelosObj", "Terreno"))
 Bosque = _Bosque(modelo_path("modelosObj", "Terreno", "vegetacion.json"))
 
-# Sala de los Héroes dentro de la casa (bustos, retratos y letrero; textos en museo.json)
+# sala de los heroes, los textos estan en museo.json
 Museo = _Museo(modelo_path("modelosObj", "Museo"))
 
+# la hacienda tiene que ir primero, main.py usa ListHacienda[0] para las colisiones
 ListHacienda = [Hacienda, Terreno, Mesa, Armas, Caballo, Retrato, Arbolito, Museo, Bosque]

@@ -1,26 +1,19 @@
-"""
-Iluminación de la escena: ciclo día/noche continuo.
-
-- Sol direccional cuya posición sigue la hora simulada (amanecer, mediodía, atardecer).
-- Luna direccional suave durante la noche.
-- Luz de relleno (rebote del cielo) para que las caras a contraluz no queden negras.
-- Luz ambiental y niebla atmosférica cuyo color cambia según la hora.
-- Iluminación por píxel (GLSL 1.20) cuando la tarjeta lo soporta; si el shader
-  no compila se usa automáticamente la iluminación fija de OpenGL.
-"""
+# iluminacion y ciclo de dia y noche
+# sol, luna, luz de relleno, ambiente y niebla que cambian con la hora
+# si la tarjeta soporta glsl se usa un shader por pixel, si no la luz fija de opengl
 import math
 import numpy as np
 from OpenGL.GL import *
 
-# ----------------------------------------------------------- Parámetros
-SEGUNDOS_POR_HORA = 5.0     # 5 s reales = 1 hora simulada (día completo = 2 minutos)
-HORA_INICIAL = 9.0          # el recorrido empieza a media mañana
-HORA_SIEMPRE_DIA = 11.0     # hora fija cuando se elige "siempre de día"
+# parametros
+SEGUNDOS_POR_HORA = 5.0     # 5 segundos = 1 hora, el dia completo dura 2 minutos
+HORA_INICIAL = 9.0          # empieza en la mañana
+HORA_SIEMPRE_DIA = 11.0     # hora para el modo siempre de dia
 INTENSIDAD_SOL = 0.85
 INTENSIDAD_LUNA = 0.24
 NIEBLA_INICIO = 90.0
 NIEBLA_FIN = 520.0
-DISTANCIA_ASTROS = 200.0    # distancia a la que se dibujan el sol y la luna
+DISTANCIA_ASTROS = 200.0    # distancia del sol y la luna
 
 SOL_MEDIODIA = (1.00, 0.96, 0.88)
 SOL_HORIZONTE = (1.00, 0.56, 0.28)
@@ -38,10 +31,10 @@ TINTE_CIELO_DIA = (1.00, 1.00, 1.00)
 TINTE_CIELO_ATARDECER = (1.00, 0.76, 0.60)
 TINTE_CIELO_NOCHE = (0.45, 0.50, 0.70)
 
-# Estado calculado en cada cuadro (lo usan main.py y el skybox)
+# estado de cada frame (lo usan main.py y el skybox)
 estado = {
     'hora': HORA_INICIAL,
-    'factor_dia': 1.0,          # 0 = noche, 1 = día pleno
+    'factor_dia': 1.0,          # 0 noche, 1 dia
     'dir_sol': [0.0, 1.0, 0.0],
     'dir_luna': [0.0, -1.0, 0.0],
     'color_sol': list(SOL_MEDIODIA),
@@ -49,15 +42,16 @@ estado = {
     'niebla': list(NIEBLA_DIA),
 }
 
-_shader = None          # programa GLSL (None = pipeline fijo)
+_shader = None          # None si no hay shader
 
 
-# ------------------------------------------------------------ Utilidades
+# utilidades
 def _mezclar(a, b, t):
     return [a[i] + (b[i] - a[i]) * t for i in range(len(a))]
 
 
 def _suavizar(e0, e1, x):
+    # igual que smoothstep de glsl
     t = max(0.0, min(1.0, (x - e0) / (e1 - e0)))
     return t * t * (3.0 - 2.0 * t)
 
@@ -68,12 +62,12 @@ def _normalizar(v):
 
 
 def hora_simulada(segundos):
-    """Hora del día (0-24, con decimales) a partir de los segundos de juego."""
+    # hora (0 a 24) segun los segundos de juego
     return (HORA_INICIAL + segundos / SEGUNDOS_POR_HORA) % 24.0
 
 
 def segundos_para_hora(hora):
-    """Segundos de juego en los que el ciclo marca la hora indicada (inversa de hora_simulada)."""
+    # lo contrario: segundos para llegar a esa hora
     return ((hora - HORA_INICIAL) % 24.0) * SEGUNDOS_POR_HORA
 
 
@@ -81,20 +75,20 @@ def es_de_dia():
     return estado['factor_dia'] >= 0.5
 
 
-# ------------------------------------------------------------ Shaders
-# Modos de sombreado especiales (se eligen por material con set_modo)
+# shaders
+# modos especiales del shader
 MODO_NORMAL = 0
-MODO_TERRENO = 1     # textura de color + textura de detalle repetida en coordenadas del mundo
-MODO_PARED = 2       # pared encalada con zócalo gris azulado en la parte baja
-MODO_FOLLAJE = 3     # hojas: la luz "envuelve" la copa para que su parte de abajo no quede negra
-MODO_PISO = 4        # piso: cemento en el corredor y baldosas de barro dentro de la casa
+MODO_TERRENO = 1     # suelo con textura de detalle
+MODO_PARED = 2       # paredes con zocalo
+MODO_FOLLAJE = 3     # hojas, la luz pasa un poco
+MODO_PISO = 4        # piso del corredor y baldosas
 
-ESCALA_DETALLE = 0.2          # la textura de detalle del suelo se repite cada 5 unidades
-ALTURA_ZOCALO = -0.6          # altura (y del mundo) hasta donde llega el zócalo de las paredes
+ESCALA_DETALLE = 0.2          # cada cuanto se repite el detalle del suelo
+ALTURA_ZOCALO = -0.6          # altura del zocalo
 COLOR_ZOCALO = (0.47, 0.53, 0.58)
 
-# Interior de la casa (x0, x1, z0, z1) y altura del cielo raso: ahí el piso es de baldosa de
-# barro, la pared tiene rodapié rojizo, el techo es de vigas y caña, y hay luz de lámparas.
+# limites de la casa (x0, x1, z0, z1) y altura del techo
+# adentro cambia el piso, las paredes, el techo y hay luz de lamparas
 CASA = (-8.6, 23.13, -29.52, 19.54)
 TECHO_CASA = 10.7
 PISO_CASA = -2.2
@@ -157,8 +151,8 @@ void main() {
     float interior = dentroCasa(vMundo, -0.05);
 
     if (modo == 1) {
-        // Suelo: color general (textura grande) x detalle fino repetido en dos escalas.
-        // El canal alfa del color indica cuánto pasto hay (1) o tierra desnuda (0).
+        // suelo: textura de color por el detalle en dos escalas
+        // en el alfa va cuanto pasto hay
         vec2 p = vMundo.xz * escalaDetalle;
         vec3 d1 = texture2D(detalle, p).rgb;
         vec3 d2 = texture2D(detalle, p * 0.27 + vec2(0.37, 0.71)).rgb;
@@ -167,29 +161,44 @@ void main() {
         float det = mix(tierra, pasto, tex.a) * 2.0;
         base = vec4(vColor.rgb * tex.rgb * det, 1.0);
     } else if (modo == 2) {
-        vec2 centro = vec2((casa.x + casa.y) * 0.5, (casa.z + casa.w) * 0.5);
         float lum = dot(tex.rgb, vec3(0.333));
-        // ¿Es la cara interior de la pared (mira hacia el centro de la casa)?
-        // (las caras horizontales, como el cielo raso, no necesitan esa prueba)
-        float haciaCentro = abs(Nmundo.y) > 0.7 ? 1.0 : step(0.0, dot(Nmundo.xz, centro - vMundo.xz));
+        // distancia a cada borde de la casa
+        float b0 = vMundo.x - casa.x, b1 = casa.y - vMundo.x, b2 = vMundo.z - casa.z, b3 = casa.w - vMundo.z;
+        float borde = min(min(b0, b1), min(b2, b3));
+        float haciaCentro;
+        if (abs(Nmundo.y) > 0.7) {
+            // techo y piso solo cuentan como interior adentro de las paredes
+            haciaCentro = step(0.34, min(b0, b1)) * step(0.02, min(b2, b3));
+        } else if (borde > 0.6) {
+            haciaCentro = 1.0;          // tabiques
+        } else {
+            // cerca de una pared de afuera solo es interior si mira hacia adentro
+            // (asi los marcos de puertas y ventanas quedan como exterior)
+            float adentro = -1.0;
+            if (b0 < 0.6) adentro = max(adentro, Nmundo.x);
+            if (b1 < 0.6) adentro = max(adentro, -Nmundo.x);
+            if (b2 < 0.6) adentro = max(adentro, Nmundo.z);
+            if (b3 < 0.6) adentro = max(adentro, -Nmundo.z);
+            haciaCentro = step(0.5, adentro);
+        }
         interior = dentroCasa(vMundo, 0.15) * haciaCentro;
         if (interior > 0.5 && Nmundo.y < -0.7) {
-            // Cielo raso: vigas de madera y caña, como en la sala del museo
+            // techo de vigas y caña
             float viga = step(fract(vMundo.z / 3.2), 0.11);
             float cana = step(0.5, fract(vMundo.x * 5.0));
             vec3 colorCana = mix(vec3(0.60, 0.46, 0.30), vec3(0.50, 0.37, 0.23), cana);
             base.rgb = mix(colorCana, vec3(0.32, 0.18, 0.10), viga) * (0.85 + 0.3 * lum);
         } else if (interior > 0.5) {
-            // Pared interior blanca con rodapié de barro
+            // pared blanca con rodapie
             if (vMundo.y < pisoCasa + 0.55) base.rgb = vec3(0.60, 0.31, 0.21) * (0.85 + 0.3 * lum);
         } else if (vMundo.y < alturaZocalo) {
-            // Exterior: zócalo gris azulado y una línea de sombra encima
+            // afuera: zocalo y una linea de sombra
             base.rgb = colorZocalo * (0.78 + 0.32 * lum);
         } else if (vMundo.y < alturaZocalo + 0.15) {
             base.rgb *= 0.72;
         }
     } else if (modo == 4 && interior > 0.5) {
-        // Baldosas de barro cocido con juntas
+        // baldosas con juntas
         vec2 t = vMundo.xz / 1.35;
         vec2 c = floor(t);
         vec2 f = fract(t);
@@ -202,7 +211,7 @@ void main() {
 
     vec3 V = normalize(-vPosOjo);
 
-    // Ambiente hemisférico: lo que mira al cielo recibe más luz que lo que mira al suelo
+    // lo que mira al cielo recibe mas luz
     float h = dot(N, normalize(vArriba)) * 0.5 + 0.5;
     float follaje = (modo == 3) ? 1.0 : 0.0;
     vec3 luz = gl_LightModel.ambient.rgb * mix(mix(0.68, 0.95, follaje), 1.15, h);
@@ -220,18 +229,18 @@ void main() {
         }
     }
 
-    // Las hojas dejan pasar algo de luz del sol: la copa se ve verde también por debajo
+    // las hojas dejan pasar un poco de luz
     luz += gl_LightSource[0].diffuse.rgb * 0.3 * follaje;
-    // Lámparas dentro de la casa
+    // lamparas de la casa
     luz += luzInterior * interior;
 
     vec3 color = base.rgb * luz + brillo * gl_FrontMaterial.specular.rgb;
 
-    // Compresión suave de altas luces para que el mediodía no "queme" las texturas
+    // para que al mediodia no se queme la imagen
     color = color / (1.0 + 0.18 * color);
     color *= 1.12;
 
-    // Niebla lineal (distancia real, no solo profundidad)
+    // niebla
     float d = length(vPosOjo);
     float f = clamp((gl_Fog.end - d) * gl_Fog.scale, 0.0, 1.0);
     color = mix(gl_Fog.color.rgb, color, f);
@@ -246,6 +255,7 @@ _modo_actual = None
 
 
 def _compilar(tipo, fuente):
+    # compila un shader y tira error si falla
     sh = glCreateShader(tipo)
     glShaderSource(sh, fuente)
     glCompileShader(sh)
@@ -256,6 +266,8 @@ def _compilar(tipo, fuente):
 
 
 def _crear_shader():
+    # arma el programa y guarda los uniforms
+    # si falla se queda con la luz fija
     global _shader
     try:
         vs = _compilar(GL_VERTEX_SHADER, _VERTEX_SHADER)
@@ -294,8 +306,7 @@ def shader_disponible():
 
 
 def activar_shader():
-    """Llamar antes de dibujar los modelos de la escena, con la cámara ya colocada
-    (después de gluLookAt), porque aquí se toma la matriz de vista."""
+    # llamar despues de gluLookAt
     global _activo, _modo_actual
     glEnable(GL_FOG)
     if _shader:
@@ -317,14 +328,14 @@ def desactivar_shader():
 
 
 def set_modo(modo):
-    """Cambia el modo de sombreado para lo que se dibuje a continuación (solo con shader)."""
+    # cambia el modo del shader
     global _modo_actual
     if _activo and modo != _modo_actual:
         glUniform1i(_uniformes["modo"], int(modo))
         _modo_actual = modo
 
 
-# ------------------------------------------------------------ Inicialización
+# inicializacion
 def init_lighting(usar_shader=True):
     glEnable(GL_DEPTH_TEST)
     glShadeModel(GL_SMOOTH)
@@ -338,17 +349,17 @@ def init_lighting(usar_shader=True):
         glLightf(luz, GL_LINEAR_ATTENUATION, 0.0)
         glLightf(luz, GL_QUADRATIC_ATTENUATION, 0.0)
 
-    # Iluminación a dos caras (planos sueltos, hojas, cuadros) y especular separado de la textura
+    # luz en las dos caras
     glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE)
     glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_TRUE)
     glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR)
 
-    # El color de cada material (glColor) define su ambiente y difuso
+    # el color de cada material es ambiente y difuso
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
     glEnable(GL_COLOR_MATERIAL)
     glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, [0.0, 0.0, 0.0, 1.0])
 
-    # Niebla atmosférica
+    # niebla
     glFogi(GL_FOG_MODE, GL_LINEAR)
     glFogf(GL_FOG_START, NIEBLA_INICIO)
     glFogf(GL_FOG_END, NIEBLA_FIN)
@@ -360,15 +371,15 @@ def init_lighting(usar_shader=True):
     update_light(estado['hora'])
 
 
-# ------------------------------------------------------------ Cada cuadro
+# cada frame
 def _calcular(hora):
-    # Ángulo del sol: 0 al amanecer (6 h), π/2 al mediodía, π al atardecer (18 h)
+    # angulo del sol: 0 a las 6, pi a las 18
     ang = (hora - 6.0) / 12.0 * math.pi
     dir_sol = _normalizar([math.cos(ang), math.sin(ang), 0.35])
     altura = dir_sol[1]
 
-    factor_dia = _suavizar(-0.12, 0.18, altura)          # transición crepuscular
-    dorado = 1.0 - _suavizar(0.02, 0.50, altura)          # cerca del horizonte la luz es cálida
+    factor_dia = _suavizar(-0.12, 0.18, altura)          # atardecer / amanecer
+    dorado = 1.0 - _suavizar(0.02, 0.50, altura)          # luz mas calida cerca del horizonte
 
     color_sol = _mezclar(SOL_MEDIODIA, SOL_HORIZONTE, dorado)
     intensidad_sol = INTENSIDAD_SOL * _suavizar(-0.04, 0.30, altura)
@@ -380,7 +391,7 @@ def _calcular(hora):
     dir_luna = _normalizar([-dir_sol[0], -dir_sol[1], 0.35])
     intensidad_luna = INTENSIDAD_LUNA * (1.0 - factor_dia) * _suavizar(-0.05, 0.25, dir_luna[1])
 
-    # Relleno: luz del cielo que llega del lado opuesto al sol/luna
+    # luz de relleno del lado contrario
     principal = dir_sol if factor_dia >= 0.5 else dir_luna
     dir_relleno = _normalizar([-principal[0], 0.6, -principal[2]])
     color_relleno = [c * 0.30 for c in ambiente]
@@ -406,8 +417,7 @@ def _calcular(hora):
 
 
 def update_light(hora=None):
-    """Actualiza las luces. Debe llamarse DESPUÉS de gluLookAt para que las
-    direcciones queden fijas en el mundo y no se muevan con la cámara."""
+    # actualiza las luces, va despues de gluLookAt
     if hora is None:
         hora = estado['hora']
     c = _calcular(hora)
@@ -415,7 +425,7 @@ def update_light(hora=None):
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, c['ambiente'] + [1.0])
 
     color, d = c['sol']
-    glLightfv(GL_LIGHT0, GL_POSITION, d + [0.0])          # w = 0 -> luz direccional
+    glLightfv(GL_LIGHT0, GL_POSITION, d + [0.0])          # w = 0 es luz direccional
     glLightfv(GL_LIGHT0, GL_DIFFUSE, color + [1.0])
     glLightfv(GL_LIGHT0, GL_SPECULAR, c['especular_sol'] + [1.0])
 
@@ -433,9 +443,9 @@ def update_light(hora=None):
     glClearColor(c['niebla'][0], c['niebla'][1], c['niebla'][2], 1.0)
 
 
-# ------------------------------------------------------------ Sol y luna
+# sol y luna
 def _disco(centro, normal, radio, color_centro, color_borde, segmentos=32):
-    # Base ortonormal perpendicular a la dirección del astro
+    # ejes perpendiculares a la direccion
     aux = [0.0, 1.0, 0.0] if abs(normal[1]) < 0.9 else [1.0, 0.0, 0.0]
     u = _normalizar([normal[1] * aux[2] - normal[2] * aux[1],
                      normal[2] * aux[0] - normal[0] * aux[2],
@@ -457,8 +467,7 @@ def _disco(centro, normal, radio, color_centro, color_borde, segmentos=32):
 
 
 def draw_light_source(cam_pos=(0.0, 0.0, 0.0)):
-    """Dibuja el sol (con halo) o la luna en el cielo, siempre detrás de la escena.
-    Llamar justo después de dibujar el skybox."""
+    # dibuja el sol o la luna, va justo despues del skybox
     glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glDisable(GL_LIGHTING)
     glDisable(GL_TEXTURE_2D)
@@ -472,7 +481,7 @@ def draw_light_source(cam_pos=(0.0, 0.0, 0.0)):
     if sol[1] > -0.15:
         centro = [cam_pos[i] + sol[i] * DISTANCIA_ASTROS for i in range(3)]
         cs = estado['color_sol']
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE)   # aditivo para el halo
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE)   # aditivo para el brillo
         _disco(centro, sol, 55.0, (cs[0], cs[1] * 0.95, cs[2] * 0.8, 0.30 * fd), (cs[0], cs[1], cs[2], 0.0))
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         _disco(centro, sol, 9.0, (1.0, 1.0, 0.95, 1.0), (cs[0], cs[1], cs[2], 0.9))

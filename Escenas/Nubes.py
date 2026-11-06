@@ -1,13 +1,5 @@
-"""
-Nubes dinámicas: dos capas de nubes procedurales que el viento desplaza sobre el cielo.
-
-- La textura se genera al iniciar (ruido fractal periódico, se repite sin costuras), así que
-  no hace falta ningún archivo de imagen.
-- Cada capa es un disco curvado (bóveda) centrado en la cámara: las nubes parecen
-  infinitamente lejanas y se desvanecen hacia el horizonte.
-- El color sigue la hora del día: blancas al mediodía, doradas al amanecer/atardecer y
-  gris azulado tenue de noche.
-"""
+# nubes que se mueven con el viento
+# son dos capas con una textura de ruido que se genera al iniciar
 import math
 import numpy as np
 from OpenGL.GL import *
@@ -15,9 +7,9 @@ from OpenGL.GL import *
 RESOLUCION = 512
 
 
-# ---------------------------------------------------------------- Textura procedural
+# textura
 def _ruido_periodico(n, celdas, rng):
-    """Ruido de valor que se repite exactamente cada n píxeles (sin costuras al repetir)."""
+    # ruido que se repite cada n pixeles
     g = rng.random((celdas, celdas)).astype(np.float32)
     x = np.arange(n, dtype=np.float32) * celdas / n
     i0 = np.floor(x).astype(int)
@@ -30,6 +22,7 @@ def _ruido_periodico(n, celdas, rng):
 
 
 def _fbm(n, semilla, octavas=(4, 8, 16, 32, 64, 128)):
+    # varias capas de ruido sumadas
     rng = np.random.default_rng(semilla)
     total = np.zeros((n, n), np.float32)
     amp, suma = 1.0, 0.0
@@ -42,12 +35,11 @@ def _fbm(n, semilla, octavas=(4, 8, 16, 32, 64, 128)):
 
 
 def _textura_nubes(n=RESOLUCION, semilla=3, cobertura=0.50):
-    """RGBA: el alfa es la densidad de la nube; el color se oscurece y azulea en las
-    zonas densas (la base de la nube vista desde abajo) y queda blanco en los bordes."""
+    # alfa = densidad, lo mas denso queda un poco mas oscuro
     ruido = _fbm(n, semilla)
     densidad = np.clip((ruido - cobertura) / 0.28, 0.0, 1.0)
     densidad = densidad * densidad * (3 - 2 * densidad)
-    # Relieve: la cara iluminada es la que mira "hacia el sol" (desplazamiento diagonal)
+    # relieve para que se vean con volumen
     relieve = np.clip((ruido - np.roll(ruido, (5, 5), (0, 1))) * 6.0, -1.0, 1.0)
     luz = np.clip(1.0 - 0.22 * densidad ** 1.5 + 0.12 * relieve, 0.68, 1.0)
     sombra = np.array([0.80, 0.84, 0.92], np.float32)
@@ -57,8 +49,7 @@ def _textura_nubes(n=RESOLUCION, semilla=3, cobertura=0.50):
 
 
 def _subir_con_mipmaps(rgba):
-    """Sube la textura con todos sus niveles de mipmap calculados en numpy (evita el
-    parpadeo de las nubes lejanas y no depende de GLU ni de glGenerateMipmap)."""
+    # sube la textura con mipmaps hechos a mano para que no parpadeen de lejos
     tex = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, tex)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
@@ -79,10 +70,9 @@ def _subir_con_mipmaps(rgba):
     return tex
 
 
-# ---------------------------------------------------------------- Bóveda
+# boveda
 def _boveda(radio, altura, caida, anillos=28, segmentos=56):
-    """Disco curvado hacia abajo en los bordes (parece seguir la curvatura del cielo).
-    Devuelve posiciones, opacidad por vértice (se desvanece hacia el horizonte) e índices."""
+    # disco que baja en los bordes, la opacidad se va perdiendo hacia el horizonte
     pos, fade = [], []
     for i in range(anillos + 1):
         r = radio * (i / anillos) ** 1.15
@@ -105,13 +95,14 @@ class _Capa:
         self.pos, self.fade, self.idx = _boveda(radio, altura, caida)
         c, s = math.cos(giro), math.sin(giro)
         x, z = self.pos[:, 0], self.pos[:, 2]
-        # Coordenadas de textura (rotadas para que las dos capas no se vean alineadas)
+        # uv rotadas para que las capas no coincidan
         self.uv_base = (np.stack([x * c - z * s, x * s + z * c], 1) / escala).astype(np.float32)
-        self.viento = np.array(viento, np.float32) / escala     # unidades de textura por segundo
+        self.viento = np.array(viento, np.float32) / escala     # por segundo
         self.opacidad = opacidad
         self.colores = np.zeros((len(self.pos), 4), np.float32)
 
     def dibujar(self, tiempo, color):
+        # mover las uv con el tiempo
         uv = np.ascontiguousarray(self.uv_base + (self.viento * tiempo) % 1.0)
         self.colores[:, :3] = color[:3]
         self.colores[:, 3] = self.fade * self.opacidad * color[3]
@@ -125,7 +116,7 @@ class Nubes:
     def __init__(self, velocidad=1.0):
         self.velocidad = velocidad
         self.textura = _subir_con_mipmaps(_textura_nubes())
-        # Capa alta, grande y lenta + capa baja, más fina y algo más rápida (paralaje)
+        # capa alta lenta y capa baja mas rapida
         self.capas = [
             _Capa(radio=600, altura=95, caida=80, escala=230, viento=(5.0, 1.6), opacidad=0.95, giro=0.0),
             _Capa(radio=560, altura=75, caida=70, escala=120, viento=(7.5, 3.2), opacidad=0.55, giro=1.1),
@@ -133,7 +124,7 @@ class Nubes:
 
     @staticmethod
     def _color(estado):
-        """Color de las nubes según la hora (usa el estado calculado en Iluminacion)."""
+        # color segun la hora
         fd = estado['factor_dia']
         sol = estado['color_sol']
         altura_sol = estado['dir_sol'][1]
@@ -145,8 +136,7 @@ class Nubes:
         return rgb + [alfa]
 
     def dibujar(self, tiempo, centro, estado):
-        """Dibuja las nubes alrededor de la cámara. Llamar después del cielo y del sol/luna
-        (así las nubes pasan por delante) y antes de la escena."""
+        # dibujar despues del cielo y antes de la escena
         color = self._color(estado)
         t = tiempo * self.velocidad
 
@@ -162,7 +152,7 @@ class Nubes:
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self.textura)
         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE)
-        # Los arreglos vienen de memoria, no de un VBO que haya quedado enlazado
+        # por si quedo un vbo enlazado
         glBindBuffer(GL_ARRAY_BUFFER, 0)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         glEnableClientState(GL_VERTEX_ARRAY)

@@ -1,9 +1,5 @@
-"""
-Menú de pausa dentro del juego (ESC o botón Start del control).
-
-Como la ventana del juego usa OpenGL, el menú se dibuja primero en una superficie
-de pygame y luego se sube como textura y se pinta encima de la escena congelada.
-"""
+# menu de pausa (ESC o start)
+# se dibuja con pygame en una superficie y se pasa como textura encima de la escena
 import pygame
 from OpenGL.GL import *
 
@@ -32,16 +28,19 @@ class _Slider:
         self.rect = pygame.Rect(0, 0, 0, 0)
 
     def valor_desde_x(self, x):
+        # posicion del mouse a valor del slider
         t = max(0.0, min(1.0, (x - self.rect.x) / max(1, self.rect.width)))
         valor = self.min + t * (self.max - self.min)
         return round(round(valor / self.paso) * self.paso, 2)
 
 
 class MenuPausa:
+
     def __init__(self, volumen, sensibilidad, velocidad, siempre_dia=False):
+        # volumen, sensibilidad y velocidad
         self.abierto = False
         self.siempre_dia = siempre_dia
-        self.vista = "principal"            # "principal" o "config"
+        self.vista = "principal"            # principal o config
         self.valores = {"volumen": volumen, "sensibilidad": sensibilidad, "velocidad": velocidad}
 
         self.botones = {
@@ -60,8 +59,10 @@ class MenuPausa:
         self._textura = None
         self.panel = pygame.Rect(0, 0, 0, 0)
 
-    # ------------------------------------------------------------ Diseño
+    # tamaños
     def _diseno(self, ancho, alto):
+        # calcula posiciones segun el tamaño de la ventana
+        # s = escala respecto a 768 px de alto
         if self._tam_ventana == (ancho, alto):
             return
         self._tam_ventana = (ancho, alto)
@@ -84,7 +85,7 @@ class MenuPausa:
         for i, sl in enumerate(self.sliders):
             sl.rect = pygame.Rect(int(60 * s), int(135 * s) + i * int(60 * s), pw - int(120 * s), max(6, int(10 * s)))
 
-    # ------------------------------------------------------------ Estado
+    # estado
     def abrir(self):
         self.abierto = True
         self.vista = "principal"
@@ -95,10 +96,11 @@ class MenuPausa:
         self._arrastrando = None
 
     def _local(self, pos):
+        # coordenadas de la ventana a coordenadas del panel
         return pos[0] - self.panel.x, pos[1] - self.panel.y
 
     def manejar_evento(self, evento):
-        """Procesa clics y arrastres del ratón. Devuelve 'continuar', 'salir' o None."""
+        # clics y arrastres, devuelve 'continuar', 'salir' o None
         if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
             pos = self._local(evento.pos)
             for b in self.botones[self.vista]:
@@ -126,14 +128,13 @@ class MenuPausa:
         return None
 
     def atras(self):
-        """ESC dentro del menú: si está en configuración vuelve al menú principal.
-        Devuelve True si el menú debe cerrarse."""
+        # ESC: si esta en config regresa, si no cierra la pausa
         if self.vista == "config":
             self.vista = "principal"
             return False
         return True
 
-    # ------------------------------------------------------------ Dibujo
+    # dibujo
     def _texto_centrado(self, sup, fuente, texto, cx, y, color=COLOR_TEXTO):
         img = fuente.render(texto, True, color)
         sup.blit(img, (cx - img.get_width() // 2, y))
@@ -161,6 +162,7 @@ class MenuPausa:
             img = self.fuente.render(b.texto, True, COLOR_TEXTO)
             sup.blit(img, (b.rect.centerx - img.get_width() // 2, b.rect.centery - img.get_height() // 2))
 
+        # sliders
         if self.vista == "config":
             for sl in self.sliders:
                 valor = self.valores[sl.clave]
@@ -178,10 +180,10 @@ class MenuPausa:
         return sup
 
     def dibujar(self, ancho, alto, hora):
-        """Dibuja el menú encima de la escena (llamar después de dibujar el mundo)."""
         self._diseno(ancho, alto)
         sup = self._superficie(hora)
         w, h = sup.get_size()
+        # pygame-ce usa tobytes y pygame viejo tostring
         if hasattr(pygame.image, "tobytes"):
             datos = pygame.image.tobytes(sup, "RGBA", False)
         else:
@@ -190,6 +192,7 @@ class MenuPausa:
         if self._textura is None:
             self._textura = glGenTextures(1)
 
+        # proyeccion 2d en pixeles
         glPushAttrib(GL_ALL_ATTRIB_BITS)
         glDisable(GL_LIGHTING)
         glDisable(GL_DEPTH_TEST)
@@ -207,14 +210,14 @@ class MenuPausa:
         glPushMatrix()
         glLoadIdentity()
 
-        # Oscurece la escena de fondo
+        # oscurecer el fondo
         glDisable(GL_TEXTURE_2D)
         glColor4f(0.0, 0.0, 0.0, 0.55)
         glBegin(GL_QUADS)
         glVertex2f(0, 0); glVertex2f(ancho, 0); glVertex2f(ancho, alto); glVertex2f(0, alto)
         glEnd()
 
-        # Panel del menú
+        # panel
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, self._textura)
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1)

@@ -1,11 +1,5 @@
-"""
-Bosque: árboles y arbustos low-poly repartidos por el mapa.
-
-Las posiciones salen de modelosObj/Terreno/vegetacion.json (ver
-Recursos/Herramientas/generar_mapa.py). Todos los árboles se juntan en un solo
-bloque de geometría por material, así miles de árboles se dibujan con unas
-pocas llamadas a OpenGL.
-"""
+# bosque low poly, las posiciones vienen de vegetacion.json
+# todos los arboles se juntan en un solo modelo para que no sea lento
 import json
 import math
 from collections import defaultdict
@@ -14,30 +8,34 @@ from Clases.Modelo import Modelos
 from Clases import ArbolesLowPoly
 from Escenas import Iluminacion
 
-# Altura del tronco (a escala 1) usada para las colisiones; por encima se puede volar entre las copas
+# altura del tronco para colisiones, arriba de eso se puede pasar
 ALTURA_TRONCO = 12.0
-LIMITE_COLISION = 260.0     # solo los árboles a los que la cámara puede llegar
-CELDA = 10.0
+LIMITE_COLISION = 260.0     # solo arboles cerca del area donde se camina
+CELDA = 10.0                # tamaño de celda para las colisiones
 
 
 class Bosque:
+
     def __init__(self, ruta_json):
         self.ruta_json = ruta_json
         self.modelo = None
         self.cantidad = 0
-        self._celdas = defaultdict(list)
+        self._celdas = defaultdict(list)    # celda: troncos
 
     def cargarmodelos(self):
         with open(self.ruta_json, "r", encoding="utf-8") as f:
             datos = json.load(f)
+        # tipo, variante, x, y, z, rotacion, escala
         arboles = [tuple(a) for a in datos.get("arboles", [])]
         arbustos = [("arbusto",) + tuple(a) for a in datos.get("arbustos", [])]
         self.cantidad = len(arboles)
 
+        # juntar todo por material
         geometria = ArbolesLowPoly.combinar(arboles + arbustos)
         self.modelo = Modelos.desde_datos(geometria, ArbolesLowPoly.MATERIALES)
         self.modelo.modos = {m: Iluminacion.MODO_FOLLAJE for m in ArbolesLowPoly.MATERIALES if m.startswith("Hoja")}
 
+        # guardar cada tronco en las celdas que toca
         for tipo, _, x, y, z, _, esc in arboles:
             radio = ArbolesLowPoly.RADIO_TRONCO.get(tipo, 0.0) * esc
             if radio <= 0 or abs(x) > LIMITE_COLISION or abs(z) > LIMITE_COLISION:

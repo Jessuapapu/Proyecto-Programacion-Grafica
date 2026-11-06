@@ -1,16 +1,7 @@
-"""
-Esculpe por código los bustos de bronce de la Sala de los Héroes.
-
-Cada busto se define con formas suaves (campos de distancia: cráneo, mandíbula,
-pómulos, nariz, ojos, orejas, cabello, bigote/barba, cuello, saco con solapas y
-botones) y se convierte en malla con "marching cubes". También calcula una
-oclusión ambiental por vértice para oscurecer los huecos como la pátina del bronce.
-
-    python Recursos/Herramientas/generar_bustos.py
-
-Genera modelosObj/Museo/busto_1.npz, busto_2.npz, busto_3.npz y bronce.png.
-Requiere numpy, scipy, scikit-image y Pillow (solo para regenerar; el juego no los necesita).
-"""
+# genera los bustos del museo con funciones de distancia (sdf) y marching cubes
+# uso: python Recursos/Herramientas/generar_bustos.py
+# crea busto_1.npz, busto_2.npz, busto_3.npz y bronce.png
+# necesita scipy y scikit-image (solo para generarlos, el juego no)
 import os
 import numpy as np
 from scipy import ndimage
@@ -19,9 +10,9 @@ from PIL import Image
 
 RAIZ = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SALIDA = os.path.join(RAIZ, "modelosObj", "Museo")
-PASO = 0.014          # resolución del vóxel (más pequeño = más detalle y más polígonos)
+PASO = 0.014          # tamaño del voxel, mas chico = mas detalle
 
-# ------------------------------------------------------------------ Primitivas SDF
+# primitivas sdf
 def elipsoide(P, c, r):
     p = (P - np.asarray(c, np.float32)) / np.asarray(r, np.float32)
     k0 = np.linalg.norm(p, axis=-1)
@@ -30,6 +21,8 @@ def elipsoide(P, c, r):
 
 
 def capsula(P, a, b, ra, rb=None):
+    # sdf: negativo es adentro de la figura
+    # capsula de a a b
     rb = ra if rb is None else rb
     a, b = np.asarray(a, np.float32), np.asarray(b, np.float32)
     pa, ba = P - a, b - a
@@ -47,21 +40,24 @@ def caja(P, c, b):
 
 
 def smin(a, b, k):
+    # union suave
     h = np.clip(0.5 + 0.5 * (b - a) / k, 0, 1)
     return b * (1 - h) + a * h - k * h * (1 - h)
 
 
 def smax(a, b, k):
+    # interseccion suave
     return -smin(-a, -b, k)
 
 
 def ruido3d(forma, celdas, semilla):
+    # ruido 3d
     r = np.random.default_rng(semilla).random((celdas,) * 3).astype(np.float32)
     z = [s / celdas for s in forma]
     return ndimage.zoom(r, z, order=3)[: forma[0], : forma[1], : forma[2]] - 0.5
 
 
-# ------------------------------------------------------------------ Escultura
+# escultura
 def busto(variante):
     lim_min = np.array([-0.95, 0.40, -0.62], np.float32)
     lim_max = np.array([0.95, 2.36, 0.72], np.float32)
@@ -72,7 +68,7 @@ def busto(variante):
     n_fino = ruido3d(forma, 70, 10 + variante)
     n_medio = ruido3d(forma, 28, 20 + variante)
 
-    # --- Cabeza
+    # cabeza
     d = elipsoide(P, (0, 1.80, 0.0), (0.335, 0.44, 0.405))                    # cráneo
     d = smin(d, elipsoide(P, (0, 1.53, 0.13), (0.245, 0.22, 0.25)), 0.12)      # mandíbula
     d = smin(d, elipsoide(P, (0, 1.43, 0.24), (0.11, 0.08, 0.10)), 0.08)       # mentón
@@ -81,8 +77,8 @@ def busto(variante):
         d = smin(d, elipsoide(P, (s * 0.335, 1.76, -0.02), (0.05, 0.125, 0.08)), 0.03)  # orejas
         d = smax(d, -esfera(P, (s * 0.13, 1.815, 0.40), 0.062), 0.04)          # cuencas de los ojos
         d = smin(d, esfera(P, (s * 0.13, 1.81, 0.335), 0.066), 0.015)           # ojos
-        d = smin(d, elipsoide(P, (s * 0.13, 1.843, 0.375), (0.07, 0.02, 0.03)), 0.02)  # párpados
-    d = smin(d, capsula(P, (-0.22, 1.885, 0.325), (0.22, 1.885, 0.325), 0.05), 0.07)    # ceja/arco superciliar
+        d = smin(d, elipsoide(P, (s * 0.13, 1.843, 0.375), (0.07, 0.02, 0.03)), 0.02)
+    d = smin(d, capsula(P, (-0.22, 1.885, 0.325), (0.22, 1.885, 0.325), 0.05), 0.07)    # cejas
     d = smin(d, capsula(P, (0, 1.86, 0.385), (0, 1.70, 0.49), 0.035, 0.055), 0.05)      # nariz
     for s in (-1, 1):
         d = smin(d, esfera(P, (s * 0.042, 1.685, 0.445), 0.035), 0.03)          # aletas de la nariz
@@ -90,8 +86,8 @@ def busto(variante):
     d = smin(d, elipsoide(P, (0, 1.565, 0.39), (0.075, 0.02, 0.028)), 0.03)    # labio inferior
     d = smax(d, -capsula(P, (-0.075, 1.583, 0.42), (0.075, 1.583, 0.42), 0.008), 0.01)  # boca
 
-    # --- Cabello
-    if variante == 2:   # entradas y pelo corto peinado hacia atrás
+    # pelo
+    if variante == 2:   # pelo corto hacia atras
         pelo = elipsoide(P, (0, 1.86, -0.05), (0.355, 0.40, 0.415))
         pelo = smax(pelo, -(Y - 1.98 + 0.35 * np.clip(Z, 0, None)), 0.05)
     else:
@@ -104,7 +100,7 @@ def busto(variante):
     for s in (-1, 1):   # patillas
         d = smin(d, elipsoide(P, (s * 0.315, 1.70, 0.12), (0.035, 0.10, 0.05)) + 0.01 * n_fino, 0.03)
 
-    # --- Bigote y barba
+    # bigote y barba
     bigote = capsula(P, (-0.13, 1.60, 0.40), (0, 1.625, 0.455), 0.028, 0.034)
     bigote = smin(bigote, capsula(P, (0.13, 1.60, 0.40), (0, 1.625, 0.455), 0.028, 0.034), 0.03)
     d = smin(d, bigote + 0.012 * n_fino, 0.02)
@@ -114,7 +110,7 @@ def busto(variante):
         barba = smax(barba, -(Z - 0.0), 0.06)
         d = smin(d, barba + 0.03 * n_fino + 0.015 * n_medio, 0.04)
 
-    # --- Cuello, hombros y saco
+    # cuello, hombros y saco
     d = smin(d, capsula(P, (0, 1.10, -0.03), (0, 1.55, -0.01), 0.155), 0.08)
     torso = elipsoide(P, (0, 0.76, -0.05), (0.66, 0.40, 0.33))                        # caja torácica
     for s in (-1, 1):
@@ -131,23 +127,24 @@ def busto(variante):
     for i, yb in enumerate((0.88, 0.72, 0.56)):   # botones
         torso = smin(torso, esfera(P, (0, yb, 0.335 - i * 0.012), 0.026), 0.01)
     torso += 0.004 * n_fino
-    # Corte clásico del busto: hombros y pecho redondeados
+    # corte del busto
     torso = smax(torso, elipsoide(P, (0, 0.45, -0.05), (0.86, 1.02, 0.52)), 0.04)
     d = smin(d, torso, 0.06)
 
-    # Base plana
+    # base plana
     d = smax(d, -(Y - 0.45), 0.02)
 
-    # Textura del bronce fundido
+    # textura del bronce
     d += 0.0025 * n_fino
 
     verts, caras, normales, _ = measure.marching_cubes(d, level=0.0, spacing=(PASO, PASO, PASO))
     verts = verts + lim_min
     normales = -normales if np.mean(np.sum(normales * (verts - verts.mean(0)), 1)) < 0 else normales
 
-    # Oclusión ambiental aproximada: muestrea el campo a lo largo de la normal
+    # oclusion: revisa el campo a lo largo de la normal
     interp = ndimage.map_coordinates
     def campo(pts):
+        # interpola el campo en cualquier punto
         idx = ((pts - lim_min) / PASO).T
         return interp(d, idx, order=1, mode="nearest")
     ao = np.zeros(len(verts), np.float32)
@@ -155,7 +152,7 @@ def busto(variante):
         ao += (dist - np.clip(campo(verts + normales * dist), -1, dist)) / dist * (0.5 ** i)
     ao = np.clip(1.0 - 0.6 * ao, 0.0, 1.0)
 
-    # Caras orientadas hacia afuera (consistentes con las normales)
+    # normales hacia afuera
     t = verts[caras]
     nc = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
     if np.mean(np.sum(nc * normales[caras].mean(1), 1)) < 0:
@@ -164,7 +161,7 @@ def busto(variante):
 
 
 def textura_bronce():
-    """Degradado: pátina oscura (huecos) -> bronce -> brillo."""
+    # degradado de la patina oscura al bronce brillante
     x = np.linspace(0, 1, 256)
     claves = [(0.0, (20, 24, 19)), (0.5, (40, 37, 28)), (0.85, (72, 56, 38)), (1.0, (108, 80, 50))]
     col = np.zeros((256, 3))

@@ -1,20 +1,6 @@
-"""
-Generador del mapa (terreno, texturas del suelo y vegetación).
-
-No hace falta ejecutarlo para jugar: sus resultados ya están en modelosObj/Terreno/.
-Sirve para regenerar el mapa si se cambian los parámetros de abajo.
-
-    python Recursos/Herramientas/generar_mapa.py
-
-Genera:
-    modelosObj/Terreno/altura.npy           alturas del terreno (grilla)
-    modelosObj/Terreno/terreno_color.png    color del suelo (RGB) + cantidad de pasto (A)
-    modelosObj/Terreno/terreno_detalle.png  detalle fino repetible (R = pasto, G = tierra)
-    modelosObj/Terreno/vegetacion.json      posición de árboles y arbustos
-    modelosObj/colision_hacienda.obj        colisiones de la hacienda sin el terreno viejo
-
-Requiere solo numpy y Pillow.
-"""
+# genera el terreno, las texturas del suelo y donde van los arboles
+# no hay que correrlo para jugar, los archivos ya estan en modelosObj/Terreno
+# uso: python Recursos/Herramientas/generar_mapa.py
 import json
 import math
 import os
@@ -27,39 +13,39 @@ RAIZ = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MODELOS = os.path.join(RAIZ, "modelosObj")
 SALIDA = os.path.join(MODELOS, "Terreno")
 
-# ------------------------------------------------------------------ Parámetros
-EXTENSION = 420.0          # el terreno va de -EXTENSION a +EXTENSION en X y Z
-PASO_MALLA = 2.5           # separación entre vértices del terreno
-RES_COLOR = 2048           # resolución de la textura de color del suelo
-NIVEL_BASE = -3.05         # altura del suelo plano donde están la casa, corrales, etc.
-SEMILLA = 1856             # año de la batalla de San Jacinto
+# parametros
+EXTENSION = 420.0          # el mapa va de -EXTENSION a EXTENSION
+PASO_MALLA = 2.5           # distancia entre vertices
+RES_COLOR = 2048           # resolucion de la textura del suelo
+NIVEL_BASE = -3.05         # altura de la parte plana de la casa
+SEMILLA = 1856             # año de la batalla
 
-# Explanadas de tierra roja (x0, x1, z0, z1) y caminos (polilíneas de puntos x, z)
+# explanadas (x0, x1, z0, z1) y caminos (lista de puntos)
 EXPLANADAS = [
-    (-24.0, 38.0, -48.0, 38.0),    # alrededor de la casa
-    (38.0, 100.0, -48.0, 8.0),     # explanada grande junto a la casa
+    (-24.0, 38.0, -48.0, 38.0),
+    (38.0, 100.0, -48.0, 8.0),
 ]
 CAMINOS = [
-    [(8, 38), (10, 70), (22, 120), (12, 180), (34, 250), (70, 330), (95, 420)],          # entrada
-    [(20, -48), (56, -56), (56, -100), (56, -150), (82, -230), (125, -330), (150, -420)],  # corrales
-    [(-24, 6), (-55, 10), (-70, 30)],                                                      # hacia el cercado
+    [(8, 38), (10, 70), (22, 120), (12, 180), (34, 250), (70, 330), (95, 420)],
+    [(20, -48), (56, -56), (56, -100), (56, -150), (82, -230), (125, -330), (150, -420)],
+    [(-24, 6), (-55, 10), (-70, 30)],
 ]
 ANCHO_CAMINO = 5.0
 
-# Colinas dentro del área jugable (x, z, altura, radio)
+# lomas (x, z, altura, radio)
 COLINAS = [(165, 195, 16, 55), (-150, 205, 12, 50), (195, -165, 14, 50),
            (-215, -205, 11, 45), (205, 40, 8, 40), (-30, -205, 9, 45)]
 
-# Árboles viejos que se conservan (se reemplazan por árboles nuevos en el mismo lugar)
+# arboles que ya estaban, se cambian por los nuevos en el mismo lugar
 ARBOLES_FIJOS = [(-25.1, -31.2), (-51.9, -1.6), (102.6, 99.2), (55.8, 111.1)]
 
 
-# ------------------------------------------------------------------ Utilidades
+# utilidades
 rng = np.random.default_rng(SEMILLA)
 
 
 def ruido(res, escala_celdas, semilla):
-    """Ruido suave: una grilla aleatoria pequeña ampliada con interpolación bicúbica."""
+    # ruido: grilla aleatoria pequeña ampliada
     r = np.random.default_rng(semilla)
     base = r.random((escala_celdas + 3, escala_celdas + 3)).astype(np.float32)
     img = Image.fromarray(base).resize((res + 2 * res // escala_celdas,) * 2, Image.BICUBIC)
@@ -79,7 +65,7 @@ def fbm(res, octavas, base_celdas, semilla, persistencia=0.5):
 
 
 def suavizar(a, sigma):
-    """Desenfoque gaussiano separable (solo numpy)."""
+    # desenfoque gaussiano
     r = int(sigma * 3)
     k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2)
     k /= k.sum()
@@ -101,6 +87,7 @@ def coords(res):
 
 
 def leer_vertices(path, excluir_materiales=(), excluir_objetos=()):
+    # vertices de un obj para saber que parte del suelo ocupa
     V, out, mat, obj = [], [], None, None
     with open(path, errors="ignore") as f:
         for l in f:
@@ -117,6 +104,7 @@ def leer_vertices(path, excluir_materiales=(), excluir_objetos=()):
 
 
 def distancia_a_polilinea(X, Z, pts):
+    # distancia a un camino
     d = np.full(X.shape, 1e9, np.float32)
     for (x0, z0), (x1, z1) in zip(pts[:-1], pts[1:]):
         dx, dz = x1 - x0, z1 - z0
@@ -130,13 +118,13 @@ def en_rect(X, Z, r, margen=0.0):
     return (X >= x0 - margen) & (X <= x1 + margen) & (Z >= z0 - margen) & (Z <= z1 + margen)
 
 
-# ------------------------------------------------------------------ Campos del mapa
+# campos del mapa
 def campos(res):
-    """Calcula alturas y máscaras a la resolución indicada."""
+    # alturas y mascaras segun la resolucion
     X, Z = coords(res)
     px = 2 * EXTENSION / (res - 1)
 
-    # Ocupación de los objetos existentes (casa, cercas, corrales, caballos...)
+    # donde hay objetos
     ocup = np.zeros((res, res), np.float32)
     for pts in OBJETOS:
         ix = np.clip(np.round((pts[:, 0] + EXTENSION) / px).astype(int), 0, res - 1)
@@ -146,14 +134,14 @@ def campos(res):
         ocup[en_rect(X, Z, r)] = 1.0
     d_caminos = np.min([distancia_a_polilinea(X, Z, c) for c in CAMINOS], axis=0)
     ocup[d_caminos < ANCHO_CAMINO] = 1.0
-    ocup[np.hypot(X, Z - 45) < 20] = 1.0                       # punto de inicio de la cámara
+    ocup[np.hypot(X, Z - 45) < 20] = 1.0                       # donde empieza la camara
 
-    # Máscara de "terreno libre": 0 junto a objetos, 1 lejos (transición de ~35 unidades)
+    # terreno libre: 0 cerca de objetos, 1 lejos
     cerca = suavizar(ocup, 9.0 / px)
     libre = 1.0 - np.clip(cerca * 6.0, 0, 1)
     libre = smoothstep(0.0, 1.0, suavizar(libre, 6.0 / px))
 
-    # Relieve
+    # relieve
     ondas = (fbm(res, 4, 6, SEMILLA) - 0.5) * 5.0
     colinas = np.zeros_like(X)
     for cx, cz, alto, radio in COLINAS:
@@ -168,11 +156,12 @@ def campos(res):
 
 
 def pendiente(altura, px):
+    # pendiente (en las laderas el pasto se pinta mas seco)
     gz, gx = np.gradient(altura, px)
     return np.hypot(gx, gz)
 
 
-# ------------------------------------------------------------------ Generación
+# generacion
 def main():
     os.makedirs(SALIDA, exist_ok=True)
     global OBJETOS
@@ -182,15 +171,15 @@ def main():
         leer_vertices(os.path.join(MODELOS, "Caballos", "Horse.obj")),
         leer_vertices(os.path.join(MODELOS, "Mesas", "Mesas.obj")),
     ]
-    OBJETOS = [o[o[:, 1] < 4.0] for o in OBJETOS]   # solo lo que toca el suelo
+    OBJETOS = [o[o[:, 1] < 4.0] for o in OBJETOS]   # solo lo que esta cerca del suelo
 
-    # ---------------- Alturas (malla)
+    # alturas
     n = int(round(2 * EXTENSION / PASO_MALLA)) + 1
     print(f"Alturas {n}x{n}...")
     _, _, altura, _, _, _ = campos(n)
     np.save(os.path.join(SALIDA, "altura.npy"), altura)
 
-    # ---------------- Color del suelo
+    # color del suelo
     res = RES_COLOR
     print(f"Textura de color {res}x{res}...")
     X, Z, alt, libre, d_caminos, r_caja = campos(res)
@@ -216,23 +205,23 @@ def main():
     col = col * (1 - np.clip(seco, 0, 1)) + amarillo * np.clip(seco, 0, 1)
     pasto = np.ones((res, res), np.float32)
 
-    # Manchas de tierra oscura en el pasto (como en el jardín de la foto)
+    # manchas de tierra en el pasto
     manchas = smoothstep(0.70, 0.78, n3) * 0.6
     col = col * (1 - manchas[..., None]) + tierra_osc * manchas[..., None]
     pasto -= manchas * 0.8
 
-    # Suelo de bosque (hojarasca) donde habrá árboles densos
+    # hojarasca donde va el bosque
     densidad = densidad_bosque(X, Z, bosque, libre, r_caja)
     h = (smoothstep(0.3, 0.8, densidad) * 0.7)[..., None]
     col = col * (1 - h) + hojarasca * h
 
-    # Caminos de tierra con bordes irregulares
+    # caminos
     borde = ANCHO_CAMINO * (0.75 + 0.5 * n2)
     c = 1 - smoothstep(borde * 0.55, borde, d_caminos)
     col = col * (1 - c[..., None]) + (tierra * (0.9 + 0.2 * n1[..., None])) * c[..., None]
     pasto -= c * 0.9
 
-    # Explanadas de tierra roja (bordes suaves y algo irregulares)
+    # explanadas de tierra roja
     for r in EXPLANADAS:
         x0, x1, z0, z1 = r
         dx = np.maximum(np.maximum(x0 - X, X - x1), 0)
@@ -248,25 +237,25 @@ def main():
     rgba = np.dstack([col * 255, pasto * 255]).astype(np.uint8)
     Image.fromarray(rgba, "RGBA").save(os.path.join(SALIDA, "terreno_color.png"), optimize=True)
 
-    # ---------------- Textura de detalle (repetible)
+    # textura de detalle
     print("Textura de detalle...")
     generar_detalle()
 
-    # ---------------- Vegetación
+    # vegetacion
     print("Vegetación...")
     vegetacion = generar_vegetacion(n, altura)
     with open(os.path.join(SALIDA, "vegetacion.json"), "w") as f:
         json.dump(vegetacion, f, separators=(",", ":"))
     print(f"  árboles: {len(vegetacion['arboles'])}, arbustos: {len(vegetacion['arbustos'])}")
 
-    # ---------------- Colisión sin el terreno viejo
+    # colision sin el terreno viejo
     print("Malla de colisión...")
     filtrar_colision()
     print("Listo.")
 
 
 def densidad_bosque(X, Z, ruido_bosque, libre, r_caja):
-    """0 = campo abierto, 1 = bosque denso."""
+    # 0 = campo, 1 = bosque
     d_casa = np.hypot(X - 30, Z + 20)
     interior = smoothstep(0.44, 0.60, ruido_bosque) * smoothstep(85, 150, d_casa)
     anillo = smoothstep(240, 270, r_caja)
@@ -274,8 +263,9 @@ def densidad_bosque(X, Z, ruido_bosque, libre, r_caja):
 
 
 def generar_detalle(res=512):
-    """R: detalle de pasto (hojas finas), G: detalle de tierra (granos). Media ~128."""
+    # R = pasto, G = tierra
     def tileable(celdas, semilla):
+        # ruido que se repite sin costuras
         r = np.random.default_rng(semilla)
         base = r.random((celdas, celdas)).astype(np.float32)
         base = np.tile(base, (3, 3))
@@ -283,7 +273,7 @@ def generar_detalle(res=512):
         return np.asarray(img)[res:2 * res, res:2 * res]
 
     pasto = 0.45 * tileable(128, 1) + 0.35 * tileable(256, 2) + 0.2 * tileable(32, 3)
-    # Trazos verticales cortos (hojas de pasto)
+    # rayitas verticales para el pasto
     r = np.random.default_rng(4)
     trazos = np.zeros((res, res), np.float32)
     for _ in range(9000):
@@ -306,6 +296,7 @@ def generar_detalle(res=512):
 
 
 def altura_en(altura, x, z):
+    # altura en x, z (igual que en Terreno.py)
     n = altura.shape[0]
     fx = (x + EXTENSION) / (2 * EXTENSION) * (n - 1)
     fz = (z + EXTENSION) / (2 * EXTENSION) * (n - 1)
@@ -317,6 +308,8 @@ def altura_en(altura, x, z):
 
 
 def generar_vegetacion(n, altura):
+    # pone los arboles y arbustos lejos de la casa y los caminos
+    # y guarda vegetacion.json
     res = 840
     X, Z, _, libre, d_caminos, r_caja = campos(res)
     bosque = fbm(res, 3, 7, SEMILLA + 31)
@@ -333,12 +326,13 @@ def generar_vegetacion(n, altura):
     celda = 7.0
 
     def lejos_de_otros(x, z, dmin):
+        # que no queden pegados
         for ox, oz, od in ocupados[-400:]:
             if (x - ox) ** 2 + (z - oz) ** 2 < max(dmin, od) ** 2:
                 return False
         return True
 
-    # Árboles conservados de la versión anterior
+    # arboles que ya estaban
     for x, z in ARBOLES_FIJOS:
         arboles.append(["guanacaste", int(r.integers(0, 4)), round(x, 2), round(altura_en(altura, x, z) - 0.2, 2),
                         round(z, 2), int(r.integers(0, 360)), round(float(r.uniform(1.0, 1.15)), 2)])
@@ -358,7 +352,7 @@ def generar_vegetacion(n, altura):
             if lejano:
                 prob = 0.22 * d
             else:
-                prob = 0.6 * d + 0.03             # bosque + árboles sueltos en el campo
+                prob = 0.6 * d + 0.03             # bosque y arboles sueltos
             if r.random() > prob:
                 continue
             dmin = 6.5 if d > 0.5 else 16.0
@@ -375,7 +369,7 @@ def generar_vegetacion(n, altura):
                             int(r.integers(0, 360)), round(float(r.uniform(0.8, 1.25)), 2)])
             ocupados.append((x, z, dmin))
 
-    # Arbustos sueltos y en los bordes del bosque
+    # arbustos
     arbustos = []
     for _ in range(9000):
         x, z = r.uniform(-245, 245, 2)
@@ -392,8 +386,7 @@ def generar_vegetacion(n, altura):
 
 
 def filtrar_colision():
-    """Quita de colision_combined.obj los triángulos del terreno viejo (ahora el suelo
-    nuevo se maneja con la grilla de alturas)."""
+    # quita el terreno viejo de colision_combined.obj
     V, cur, tris = [], None, []
     with open(os.path.join(MODELOS, "Hacienda", "Hacienda.obj"), errors="ignore") as f:
         for l in f:

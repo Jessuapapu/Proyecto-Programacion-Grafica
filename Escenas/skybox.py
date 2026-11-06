@@ -4,14 +4,13 @@ import numpy as np
 from OpenGL.GL import *
 from PIL import Image
 
-# Ruta base dinámica (soporte para .exe y script)
+# ruta base
 if getattr(sys, 'frozen', False):
     BASE_PATH = sys._MEIPASS
 else:
     BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
-# Función auxiliar para construir ruta absoluta
 def recurso_path(*partes):
     return os.path.join(BASE_PATH, *partes)
 
@@ -20,23 +19,20 @@ def _skybox_path(nombre):
     return recurso_path("Recursos", "Imagenes", "Skybox", nombre)
 
 
-# Sol / luna que vienen pintados en las imágenes frontales (centro x, centro y, radio
-# incluyendo el resplandor, en píxeles de una imagen de 1024x1024). Se borran al cargar
-# porque el sol y la luna reales se dibujan en Iluminacion.py y se mueven con la hora;
-# si no, se veían dos soles / dos lunas.
+# sol y luna que vienen pintados en la imagen frontal (x, y, radio)
+# se borran porque el sol y la luna se dibujan aparte en Iluminacion.py
 _ASTRO_FRONTAL = (543, 853, 118)
 
-RESOLUCION_TAPAS = 512      # tamaño de las caras superior e inferior generadas
+RESOLUCION_TAPAS = 512      # tamaño del techo y piso generados
 
 
-# ---------------------------------------------------------------- Utilidades de imagen
+# funciones de imagen
 def _leer(path):
     return np.asarray(Image.open(path).convert("RGB"), dtype=np.float32)
 
 
 def _borrar_disco(img, cx, cy, radio):
-    """Rellena un disco interpolando horizontalmente entre sus bordes izquierdo y derecho
-    (el cielo es un degradado vertical, así que el relleno queda invisible)."""
+    # tapa un circulo interpolando entre sus bordes
     h, w, _ = img.shape
     esc = w / 1024.0
     cx, cy, radio = cx * esc, cy * esc, radio * esc
@@ -55,13 +51,13 @@ def _borrar_disco(img, cx, cy, radio):
 
 
 def _remuestrear(borde, n):
-    """Cambia la longitud de un borde (k, 3) a (n, 3)."""
     x_old = np.linspace(0.0, 1.0, len(borde))
     x_new = np.linspace(0.0, 1.0, n)
     return np.stack([np.interp(x_new, x_old, borde[:, c]) for c in range(3)], axis=1)
 
 
 def _suavizar(borde, sigma):
+    # suavizado gaussiano
     radio = int(sigma * 3)
     k = np.exp(-0.5 * (np.arange(-radio, radio + 1) / sigma) ** 2)
     k /= k.sum()
@@ -70,8 +66,7 @@ def _suavizar(borde, sigma):
 
 
 def _coons(b0, b1, c0, c1):
-    """Superficie de Coons: rellena un cuadrado conociendo sus 4 bordes.
-    b0/b1 = bordes t=0 / t=1 (recorridos en s);  c0/c1 = bordes s=0 / s=1 (recorridos en t)."""
+    # rellena un cuadrado sabiendo sus 4 bordes (superficie de coons)
     n = len(b0)
     u = np.linspace(0.0, 1.0, n)[None, :, None]
     v = np.linspace(0.0, 1.0, n)[:, None, None]
@@ -84,13 +79,13 @@ def _coons(b0, b1, c0, c1):
 
 
 def _tapa(b0, b1, c0, c1, n=RESOLUCION_TAPAS, estrellas=False):
-    """Genera la cara superior/inferior del cubo a partir de los bordes de las 4 caras
-    laterales: coincide exactamente en las uniones, sin el corte visible de antes."""
+    # genera el techo o el piso usando los bordes de las caras de los lados
+    # asi no se nota el corte
     exactos = [_remuestrear(b, n) for b in (b0, b1, c0, c1)]
     suaves = [_suavizar(b, n * 0.06) for b in exactos]
     img = _coons(*suaves)
 
-    # Los detalles finos del borde (nubes) se conservan solo cerca de la unión
+    # los detalles del borde solo se dejan cerca de la union
     d = np.linspace(0.0, 1.0, n)
     caida = np.clip(1.0 - d / 0.12, 0.0, 1.0) ** 2
     img += (exactos[0] - suaves[0])[None, :, :] * caida[:, None, None]
@@ -104,7 +99,7 @@ def _tapa(b0, b1, c0, c1, n=RESOLUCION_TAPAS, estrellas=False):
         ys = rng.integers(0, n, cantidad)
         xs = rng.integers(0, n, cantidad)
         brillo = rng.random(cantidad) ** 3 * 200 + 25
-        # Sin estrellas pegadas a los bordes para que la transición con las caras laterales sea suave
+        # sin estrellas pegadas al borde
         dist_borde = np.minimum.reduce([ys, xs, n - 1 - ys, n - 1 - xs]) / n
         brillo *= np.clip((dist_borde - 0.06) / 0.25, 0.0, 1.0)
         for dy, dx, f in ((0, 0, 1.0), (1, 0, 0.35), (-1, 0, 0.35), (0, 1, 0.35), (0, -1, 0.35)):
@@ -114,6 +109,7 @@ def _tapa(b0, b1, c0, c1, n=RESOLUCION_TAPAS, estrellas=False):
 
 
 class Skybox:
+    # # skybox de dia y de noche, se mezclan segun la hora
     def __init__(self, size=50.0):
         self.size = size
         self.textures_dia = {}
@@ -135,24 +131,24 @@ class Skybox:
         self._cargar_set(self.faces_dia, self.textures_dia, estrellas=False)
         self._cargar_set(self.faces_noche, self.textures_noche, estrellas=True)
 
-    # ------------------------------------------------------------ Carga
+    # carga
     def _cargar_set(self, faces, destino, estrellas):
-        # "tex" = matriz tal como la muestrea OpenGL: fila 0 -> t=0 (abajo), columna 0 -> s=0
+        # fila 0 = abajo
         tex = {}
         for nombre, path in faces.items():
             try:
                 img = _leer(path)
                 if nombre == "front":
                     img = _borrar_disco(img, *_ASTRO_FRONTAL)
-                tex[nombre] = img[:, ::-1]          # espejo horizontal (orientación original)
+                tex[nombre] = img[:, ::-1]          # espejo horizontal
             except Exception as e:
                 print(f"Error cargando textura '{path}': {e}")
 
         if len(tex) == 4:
             f, b, l, r = tex["front"], tex["back"], tex["left"], tex["right"]
-            # Cara superior: sus bordes son la última fila (t=1) de cada cara lateral
+            # techo con la ultima fila de cada cara
             tex["top"] = _tapa(f[-1], b[-1, ::-1], l[-1, ::-1], r[-1], estrellas=estrellas)
-            # Cara inferior: sus bordes son la primera fila (t=0) de cada cara lateral
+            # piso con la primera fila
             tex["bottom"] = _tapa(b[0, ::-1], f[0], l[0], r[0, ::-1])
         else:
             print("⚠️ Faltan caras del skybox: no se generan el techo ni el piso del cielo")
@@ -170,19 +166,19 @@ class Skybox:
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, datos)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        # Evita las líneas visibles en las uniones del cubo
+        # para que no se vean lineas en las esquinas
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
         glBindTexture(GL_TEXTURE_2D, 0)
         return texture_id
 
-    # ------------------------------------------------------------ Límites del mundo
+    # limites
     def collides(self, pos, buffer=0.1):
         x, y, z = pos
         limit = self.size - buffer
         return abs(x) > limit or abs(y) > limit or abs(z) > limit
 
-    # ------------------------------------------------------------ Dibujo
+    # dibujo
     def _draw_set(self, texturas, color):
         size = self.size
 
@@ -205,11 +201,8 @@ class Skybox:
         draw_face("bottom", [(-size, -size,  size), ( size, -size,  size), ( size, -size, -size), (-size, -size, -size)])
 
     def draw(self, modo_dia=True, tinte=(1.0, 1.0, 1.0), centro=None, giro=0.0):
-        """modo_dia puede ser bool o un factor 0..1: con valores intermedios el cielo de
-        día y el de noche se mezclan suavemente. 'centro' = posición de la cámara: el cielo
-        se dibuja alrededor de ella para que parezca infinitamente lejano. 'giro' (grados)
-        rota el cielo lentamente sobre el eje vertical: las nubes pintadas en el horizonte
-        también se desplazan."""
+        # modo_dia va de 0 a 1 (noche a dia)
+        # se dibuja centrado en la camara y giro rota el cielo
         factor = max(0.0, min(1.0, float(modo_dia)))
 
         glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

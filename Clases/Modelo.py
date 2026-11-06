@@ -1,3 +1,5 @@
+# carga de modelos obj/mtl y dibujo con vbo (uno por material)
+# tambien maneja la malla de colision
 import os
 import math
 from collections import defaultdict
@@ -9,21 +11,21 @@ from OpenGL.arrays import vbo
 
 from Escenas import Iluminacion as _iluminacion
 
-# Cada vértice del VBO: posición (3) + coordenada de textura (2) + normal (3)
+# por vertice: pos (3) + uv (2) + normal (3)
 FLOATS_POR_VERTICE = 8
 STRIDE = FLOATS_POR_VERTICE * 4
 
-# Constantes de la extensión de filtrado anisotrópico (no siempre expuestas por PyOpenGL)
+# constantes del filtro anisotropico (pyopengl no siempre las tiene)
 _GL_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FE
 _GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FF
 
-# Caché global de texturas: ruta absoluta -> (id OpenGL, tiene_transparencia)
+# cache de texturas: ruta: (id, transparente)
 _cache_texturas = {}
 _textura_blanca = None
 
 
 def textura_blanca():
-    """Textura 1x1 blanca para materiales sin imagen (el color sale de Kd)."""
+    # textura blanca de 1x1 para los materiales sin imagen
     global _textura_blanca
     if _textura_blanca is None:
         _textura_blanca = glGenTextures(1)
@@ -36,7 +38,7 @@ def textura_blanca():
 
 
 def _es_puntero_lfs(ruta):
-    """Detecta si el archivo es un puntero de Git LFS en lugar del archivo real."""
+    # revisa si el archivo es un puntero de git lfs y no el archivo real
     try:
         with open(ruta, 'rb') as f:
             return f.read(64).startswith(b'version https://git-lfs')
@@ -57,7 +59,7 @@ def _verificar_archivo(ruta):
 
 
 def _indice_obj(token, total):
-    """Convierte un índice OBJ (1-based, admite negativos) a índice de lista."""
+    # indice del obj (empieza en 1 y puede ser negativo) a indice de lista
     i = int(token)
     return i - 1 if i > 0 else total + i
 
@@ -67,17 +69,16 @@ def _material_defecto():
         'kd': [0.8, 0.8, 0.8],
         'ks': [0.5, 0.5, 0.5],
         'ns': 50.0,
-        'textura': None,          # nombre de archivo de map_Kd
-        'escala_uv': (1.0, 1.0),  # opción -s de map_Kd
-        'offset_uv': (0.0, 0.0),  # opción -o de map_Kd
+        'textura': None,          # archivo de map_Kd
+        'escala_uv': (1.0, 1.0),  # -s
+        'offset_uv': (0.0, 0.0),  # -o
         'tex_id': None,
         'transparente': False,
     }
 
 
 def _parsear_map(resto):
-    """Separa las opciones (-s, -o, -bm, ...) del nombre de archivo de un map_*.
-    El nombre de archivo puede contener espacios (p. ej. 'plants atlas.png')."""
+    # separa las opciones (-s, -o...) del nombre del archivo
     tokens = resto.split()
     opciones = {}
     i = 0
@@ -100,33 +101,34 @@ def _parsear_map(resto):
             i += 1
         opciones[nombre] = valores
     archivo = ' '.join(tokens[i:]).replace('\\', '/')
-    # Las rutas absolutas exportadas desde Blender (C:/Users/...) se reducen al nombre del archivo
+    # las rutas de blender (C:/Users/...) se dejan solo con el nombre
     return os.path.basename(archivo), opciones
 
 
 class Modelos:
+
     def __init__(self, path_obj, path_mtl, path_colision=None, culling_dist=300.0, cell_size=4.0, collision_radius=0.6,
                  excluir_materiales=(), modos=None):
-        """excluir_materiales: materiales del OBJ que no se cargan (p. ej. el terreno viejo).
-        modos: material -> modo de sombreado especial del shader (ver Iluminacion.MODO_*)."""
+        # excluir_materiales: materiales que no se cargan
+                # modos: modo del shader para algunos materiales
         self.excluir_materiales = set(excluir_materiales)
         self.modos = dict(modos or {})
-        self.materiales = {}          # material -> propiedades
-        self.vbos = {}                # material -> (VBO, cantidad de vértices)
-        self.bounding_boxes = {}      # material -> (min, max)
-        self._datos = {}              # material -> np.array (N, 8) antes de subirlo a la GPU
+        self.materiales = {}
+        self.vbos = {}                # material: (vbo, cantidad)
+        self.bounding_boxes = {}
+        self._datos = {}              # datos antes de subirlos
 
         self.path_obj = path_obj
         self.path_mtl = path_mtl
         self.path_colision = path_colision
 
-        # Parámetros de colisión y culling
+        # colision y culling
         self.collision_cells = defaultdict(list)
         self.cell_size = cell_size
         self.collision_radius = collision_radius
         self.culling_distance = culling_dist
 
-    # ------------------------------------------------------------------ MTL
+    # mtl
     def _load_mtl(self, ruta_mtl):
         actual = None
         with open(ruta_mtl, 'r', encoding='utf-8', errors='ignore') as f:
@@ -162,8 +164,9 @@ class Modelos:
                 except (ValueError, IndexError):
                     print(f"⚠️ Línea MTL inválida en {ruta_mtl}: {linea}")
 
-    # ------------------------------------------------------------------ OBJ
+    # obj
     def _load_obj(self, ruta_obj):
+        # arma una lista de vertices por material
         posiciones, uvs, normales = [], [], []
         datos = defaultdict(list)
         actual = '__defecto__'
@@ -192,7 +195,7 @@ class Modelos:
                         continue
 
                     destino = datos[actual]
-                    # Triangulación en abanico: soporta quads y polígonos de N lados
+                    # triangulacion en abanico para caras de mas de 3 lados
                     for k in range(1, len(vertices) - 1):
                         tri = (vertices[0], vertices[k], vertices[k + 1])
                         pts = [posiciones[v[0]] for v in tri]
@@ -210,6 +213,7 @@ class Modelos:
 
     @staticmethod
     def _normal_cara(a, b, c):
+        # normal de la cara si el obj no trae
         u = [b[i] - a[i] for i in range(3)]
         v = [c[i] - a[i] for i in range(3)]
         n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
@@ -218,9 +222,10 @@ class Modelos:
             return (0.0, 1.0, 0.0)
         return tuple(x / largo for x in n)
 
-    # ------------------------------------------------------------- Texturas
+    # texturas
     @staticmethod
     def _cargar_textura(ruta):
+        # carga una textura con mipmaps, usa cache
         ruta = os.path.abspath(ruta)
         if ruta in _cache_texturas:
             return _cache_texturas[ruta]
@@ -228,8 +233,7 @@ class Modelos:
         img = pygame.image.load(ruta)
         if pygame.display.get_surface() is not None:
             img = img.convert_alpha()
-        # Se sube la imagen con la fila superior primero: las UV de los modelos
-        # (retratos, etc.) fueron ajustadas para esta orientación.
+        # la fila de arriba va primero, las uv de los modelos estan hechas asi
         if hasattr(pygame.image, 'tobytes'):
             data = pygame.image.tobytes(img, 'RGBA', False)
         else:
@@ -250,10 +254,10 @@ class Modelos:
             glGenerateMipmap(GL_TEXTURE_2D)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
         except Exception:
-            # Drivers antiguos sin glGenerateMipmap
+            # drivers viejos
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         try:
-            # Filtrado anisotrópico: el suelo y las paredes se ven nítidos a distancia
+            # anisotropico para que el piso se vea bien de lejos
             max_aniso = glGetFloatv(_GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT)
             glTexParameterf(GL_TEXTURE_2D, _GL_TEXTURE_MAX_ANISOTROPY_EXT, min(8.0, float(max_aniso)))
         except Exception:
@@ -273,15 +277,17 @@ class Modelos:
             elif mat in self._datos:
                 print(f"⚠️ Textura no encontrada: {tex_path} (se usará el color del material)")
 
-    # ----------------------------------------------------------------- VBOs
+    # vbos
     def _generate_vbos(self):
+        # sube cada material y guarda su caja
         for mat, arr in self._datos.items():
             self.vbos[mat] = (vbo.VBO(arr), len(arr))
             self.bounding_boxes[mat] = (arr[:, 0:3].min(axis=0).tolist(), arr[:, 0:3].max(axis=0).tolist())
         self._datos = {}
 
-    # ------------------------------------------------------------ Colisión
+    # colision
     def _load_collision_mesh(self, ruta_col):
+        # cada triangulo se guarda en las celdas que toca
         verts = []
         with open(ruta_col, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
@@ -298,7 +304,7 @@ class Modelos:
                                 self.collision_cells[(cx, cz)].append((a, b, c))
 
     def _point_in_tri(self, p, a, b, c):
-        # Test basado en coordenadas baricéntricas y distancia al plano
+        # baricentricas + distancia al plano
         def v(u, w): return [w[i] - u[i] for i in range(3)]
         def dot(u, w): return sum(u[i] * w[i] for i in range(3))
         def cross(u, w): return [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]]
@@ -322,6 +328,7 @@ class Modelos:
         return u >= 0 and w >= 0 and u + w <= 1 and abs(dist) <= self.collision_radius
 
     def collides(self, point):
+        # solo los triangulos de esa celda
         cx, cz = int(point[0] // self.cell_size), int(point[2] // self.cell_size)
         for tri in self.collision_cells.get((cx, cz), []):
             if self._point_in_tri(point, *tri):
@@ -329,7 +336,7 @@ class Modelos:
         return False
 
     def _in_frustum(self, bb):
-        # Simplificado: distancia al centro del AABB
+        # distancia al origen, no a la camara
         min_bb, max_bb = bb
         center = [(min_bb[i] + max_bb[i]) / 2 for i in range(3)]
         dist = math.sqrt(sum(c ** 2 for c in center))
@@ -337,8 +344,7 @@ class Modelos:
 
     @classmethod
     def desde_datos(cls, datos, colores, culling_dist=1e9):
-        """Crea un modelo a partir de geometría ya armada en memoria.
-        datos: material -> array (N, 8) [posición, uv, normal]; colores: material -> (r, g, b)."""
+        # crea un modelo con datos que ya estan en memoria (material: array N x 8)
         m = cls(None, None, culling_dist=culling_dist)
         for mat, color in colores.items():
             m.materiales[mat] = _material_defecto()
@@ -348,7 +354,7 @@ class Modelos:
         m._generate_vbos()
         return m
 
-    # --------------------------------------------------------------- Carga
+    # carga
     def cargarmodelos(self):
         _verificar_archivo(self.path_obj)
         _verificar_archivo(self.path_mtl)
@@ -367,8 +373,7 @@ class Modelos:
                 print(f"⚠️ Colisiones desactivadas: {e}")
 
     def liberar(self):
-        """Libera los buffers de la GPU. Llamar antes de cerrar pygame para evitar
-        los mensajes de PyOpenGL al apagar Python."""
+        # liberar antes de cerrar pygame
         for vb, _ in self.vbos.values():
             try:
                 vb.delete()
@@ -376,7 +381,7 @@ class Modelos:
                 pass
         self.vbos.clear()
 
-    # -------------------------------------------------------------- Dibujo
+    # dibujo
     def draw(self):
         glEnable(GL_LIGHTING)
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -392,7 +397,7 @@ class Modelos:
             _iluminacion.set_modo(self.modos.get(mat, _iluminacion.MODO_NORMAL))
 
             glEnable(GL_TEXTURE_2D)
-            alfa = m.get('alfa', 1.0)       # < 1 para materiales translúcidos (vidrio)
+            alfa = m.get('alfa', 1.0)       # menos de 1 para el vidrio
             if tex:
                 glBindTexture(GL_TEXTURE_2D, tex)
                 glColor4f(1.0, 1.0, 1.0, alfa)
@@ -400,18 +405,19 @@ class Modelos:
                 glBindTexture(GL_TEXTURE_2D, textura_blanca())
                 glColor4f(m['kd'][0], m['kd'][1], m['kd'][2], alfa)
 
-            # Hojas, plantas y otras texturas con transparencia
+            # texturas con transparencia (hojas)
             if tex and m['transparente']:
                 glEnable(GL_ALPHA_TEST)
                 glAlphaFunc(GL_GREATER, 0.5)
             else:
                 glDisable(GL_ALPHA_TEST)
 
-            # Brillo especular sutil (los valores de Blender son demasiado altos para OpenGL fijo)
+            # brillo bajo, el de blender es muy alto
             spec = [min(s, 0.5) * 0.3 for s in m['ks']] + [1.0]
             glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec)
             glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, max(4.0, min(64.0, m['ns'] / 8.0)))
 
+            # opciones -s y -o del mtl
             transformar_uv = m['escala_uv'] != (1.0, 1.0) or m['offset_uv'] != (0.0, 0.0)
             if transformar_uv:
                 glMatrixMode(GL_TEXTURE)
@@ -421,6 +427,7 @@ class Modelos:
                 glScalef(m['escala_uv'][0], m['escala_uv'][1], 1.0)
                 glMatrixMode(GL_MODELVIEW)
 
+            # pos en el byte 0, uv en el 12 y normal en el 20
             vb.bind()
             glVertexPointer(3, GL_FLOAT, STRIDE, vb)
             glTexCoordPointer(2, GL_FLOAT, STRIDE, vb + 12)

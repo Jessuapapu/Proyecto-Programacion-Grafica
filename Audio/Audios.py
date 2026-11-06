@@ -1,11 +1,10 @@
+# manejo de la musica y efectos de sonido
 import pygame
 from pygame import mixer
 import os
 import sys
 
-# Ruta base dinámica compatible con PyInstaller.
-# Debe apuntar a la raíz del proyecto (antes apuntaba a la carpeta Audio/ y
-# por eso la música y los efectos del juego nunca se encontraban).
+# ruta base (funciona tambien con el .exe de pyinstaller)
 if getattr(sys, 'frozen', False):
     BASE_PATH = sys._MEIPASS
 else:
@@ -13,7 +12,7 @@ else:
 
 
 def _mixer_listo():
-    """Inicializa el mezclador si hace falta. Devuelve False si no hay dispositivo de audio."""
+    # inicia el mixer si no esta iniciado, si no hay audio devuelve False
     if mixer.get_init():
         return True
     try:
@@ -25,15 +24,16 @@ def _mixer_listo():
 
 
 class Musica:
+
     def __init__(self, ruta_relativa=os.path.join("Recursos", "Sonidos")):
-        self.musicas = {}
-        self.efectos = {}
+        self.musicas = {}               # nombre: ruta
+        self.efectos = {}               # nombre: Sound
         self._efectos_pendientes = {}
 
-        # Ruta absoluta a los sonidos
         self.ruta_base = os.path.join(BASE_PATH, ruta_relativa)
 
     def cargar_musica(self, nombre, archivo):
+        # la musica se carga hasta que se reproduce
         ruta = os.path.join(self.ruta_base, archivo)
         if os.path.isfile(ruta):
             self.musicas[nombre] = ruta
@@ -53,6 +53,7 @@ class Musica:
             self.efectos[nombre].play()
 
     def reproducir_musica(self, nombre, bucle=True):
+        # -1 = en bucle
         if nombre in self.musicas and _mixer_listo():
             mixer.music.load(self.musicas[nombre])
             mixer.music.play(-1 if bucle else 0)
@@ -70,5 +71,6 @@ class Musica:
             mixer.music.unpause()
 
     def cerrar_sonidos(self):
+        # para todos los efectos
         if mixer.get_init():
             mixer.stop()

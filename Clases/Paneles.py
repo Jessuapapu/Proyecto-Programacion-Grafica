@@ -1,8 +1,9 @@
+# panel de texto del menu viejo (ya no se usa)
 import pygame
 
 pygame.init()
 font = pygame.font.SysFont("Consolas", 15, bold=True)
-# Resolución base y escalado
+# resolucion base y escalado
 INTERNAL_WIDTH, INTERNAL_HEIGHT = 704, 384
 SCALE = 2
 WINDOW_WIDTH, WINDOW_HEIGHT = INTERNAL_WIDTH * SCALE, INTERNAL_HEIGHT * SCALE
@@ -24,4 +25,4 @@ class Panel:
             y += 30
 
         if click:
-            self.close_callback()
+            self.close_callback()

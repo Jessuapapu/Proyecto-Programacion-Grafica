@@ -158,6 +158,16 @@ Recreation of the museum room "Sala de los Héroes de la Batalla" (`Escenas/Muse
   red velvet and muzzle-loading rifles mounted inside the glass, with small labels.
 - Names, positions, images and display cases are in `modelosObj/Museo/museo.json`.
 
+## 🧭 Main menu
+
+`Escenas/Menu.py` is an animated, fully navigable start menu:
+
+- Background photo of the hacienda that pans slowly and reacts to the mouse (parallax), with floating light particles.
+- Buttons slide in on start, highlight smoothly, show a description of each option and play interface sounds (synthesized in code).
+- Works with mouse, keyboard (arrows/WASD, Enter, Esc, mouse wheel on sliders) or controller (D-pad/stick, A to accept, B to go back).
+- Panels with transitions: settings (draggable sliders, sky-mode selector, controller status), help with drawn keys, credits and an exit confirmation.
+- Starting the tour fades the screen to black while the music fades out.
+
 ## ☁️ Dynamic clouds
 
 `Escenas/Nubes.py` draws two procedural cloud layers (seamless fractal-noise texture generated at

@@ -1,3 +1,6 @@
+# lista de objetos de la escena, cada uno con cargarmodelos, draw y liberar
+
+
 class Escenas:
     def __init__(self,ListModels:list):
         self.Modelos = ListModels
@@ -12,9 +15,10 @@ class Escenas:
             Modelo.liberar()
 
     def DibujarEscena(self):
+        # primero lo opaco
         for Modelo in self.Modelos:
             Modelo.draw()
-        # Segunda pasada: objetos translúcidos (vidrios), siempre al final
+        # despues lo transparente (vidrios)
         for Modelo in self.Modelos:
             if hasattr(Modelo, "draw_transparente"):
                 Modelo.draw_transparente()
@@ -22,4 +26,4 @@ class Escenas:
 
         
     
-        
+        

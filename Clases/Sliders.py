@@ -1,10 +1,11 @@
+# slider del menu viejo (ya no se usa)
 import pygame
 
-# Fuente
+# fuente
 pygame.init()
 font = pygame.font.SysFont("Consolas", 15, bold=True)
 
-# Resolución base y escalado
+# resolucion base y escalado
 INTERNAL_WIDTH, INTERNAL_HEIGHT = 704, 384
 SCALE = 2
 WINDOW_WIDTH, WINDOW_HEIGHT = INTERNAL_WIDTH * SCALE, INTERNAL_HEIGHT * SCALE
@@ -22,6 +23,7 @@ class Slider:
         self.height = 8
 
     def draw(self, surface, mouse_pos, click):
+        # si se hace clic en la barra cambia el valor
         x, y = self.pos
         pygame.draw.rect(surface, (100, 100, 100), (x, y, self.width, self.height))
 
@@ -35,5 +37,5 @@ class Slider:
         if click and pygame.Rect(x, y, self.width, self.height).collidepoint(mouse_pos[0] // SCALE, mouse_pos[1] // SCALE):
             rel_x = (mouse_pos[0] // SCALE) - x
             new_value = self.min + (rel_x / self.width) * (self.max - self.min)
-            # round(..., 2) evita valores como 0.30000000000000004 en pantalla
+            # round para que no salga 0.30000000000000004
             self.value = round(max(self.min, min(self.max, round(new_value / self.step) * self.step)), 2)

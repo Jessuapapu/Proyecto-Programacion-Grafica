@@ -1,12 +1,5 @@
-"""
-Terreno del mapa: malla de alturas con relieve (zona plana alrededor de la
-hacienda, lomas suaves en el campo y una sierra boscosa en el horizonte).
-
-Los datos salen de modelosObj/Terreno/ (ver Recursos/Herramientas/generar_mapa.py):
-  altura.npy           alturas en una grilla regular
-  terreno_color.png    color del suelo; el canal alfa indica cuánto pasto hay
-  terreno_detalle.png  detalle fino repetible (pasto / tierra) que usa el shader
-"""
+# terreno con relieve a partir de un mapa de alturas (altura.npy)
+# los archivos se generan con generar_mapa.py
 import os
 import numpy as np
 from OpenGL.GL import *
@@ -15,10 +8,11 @@ from OpenGL.arrays import vbo
 from Clases.Modelo import Modelos
 from Escenas import Iluminacion
 
-STRIDE = 8 * 4   # posición (3) + uv (2) + normal (3)
+STRIDE = 8 * 4   # pos + uv + normal
 
 
 class Terreno:
+
     def __init__(self, carpeta, extension=420.0):
         self.carpeta = carpeta
         self.extension = extension
@@ -29,7 +23,7 @@ class Terreno:
         self.tex_color = None
         self.tex_detalle = None
 
-    # Misma interfaz que Modelo.Modelos para poder usarlo dentro de Escenas
+    # mismos metodos que Modelos para poder meterlo en la escena
     def cargarmodelos(self):
         ruta = os.path.join(self.carpeta, "altura.npy")
         if not os.path.isfile(ruta):
@@ -41,13 +35,16 @@ class Terreno:
 
         c = np.linspace(-e, e, n, dtype=np.float32)
         X, Z = np.meshgrid(c, c)                     # fila = z, columna = x
+        # normales con el gradiente
         gz, gx = np.gradient(self.altura, paso)
         normales = np.dstack([-gx, np.ones_like(gx), -gz])
         normales /= np.linalg.norm(normales, axis=2, keepdims=True)
 
+        # x, y, z, u, v, normal
         datos = np.dstack([X, self.altura, Z, (X + e) / (2 * e), (Z + e) / (2 * e), normales])
         datos = np.ascontiguousarray(datos.reshape(-1, 8), dtype=np.float32)
 
+        # 2 triangulos por cuadro
         j, i = np.meshgrid(np.arange(n - 1), np.arange(n - 1), indexing="ij")
         a = (j * n + i).ravel()
         b, cc = a + 1, a + n
@@ -62,7 +59,7 @@ class Terreno:
         self.tex_detalle, _ = Modelos._cargar_textura(os.path.join(self.carpeta, "terreno_detalle.png"))
 
     def altura_en(self, x, z):
-        """Altura del suelo en (x, z) con interpolación bilineal."""
+        """altura del suelo en x, z (interpolada)"""
         if self.altura is None:
             return -1e9
         n = self.altura.shape[0]
@@ -79,6 +76,7 @@ class Terreno:
         return float(a * (1 - tz) + b * tz)
 
     def collides(self, punto):
+        # el suelo no bloquea
         return False
 
     def liberar(self):
@@ -96,7 +94,7 @@ class Terreno:
         glEnable(GL_LIGHTING)
         Iluminacion.set_modo(Iluminacion.MODO_TERRENO)
 
-        # Unidad 1: detalle (solo lo usa el shader)
+        # textura de detalle en la unidad 1
         glActiveTexture(GL_TEXTURE1)
         glBindTexture(GL_TEXTURE_2D, self.tex_detalle)
         glActiveTexture(GL_TEXTURE0)
@@ -106,6 +104,7 @@ class Terreno:
         glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, [0.02, 0.02, 0.02, 1.0])
         glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 8.0)
 
+        # pos en el byte 0, uv en el 12 y normal en el 20
         glEnableClientState(GL_VERTEX_ARRAY)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         glEnableClientState(GL_NORMAL_ARRAY)
