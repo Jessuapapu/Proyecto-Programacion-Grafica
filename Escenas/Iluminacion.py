@@ -87,10 +87,18 @@ MODO_NORMAL = 0
 MODO_TERRENO = 1     # textura de color + textura de detalle repetida en coordenadas del mundo
 MODO_PARED = 2       # pared encalada con zócalo gris azulado en la parte baja
 MODO_FOLLAJE = 3     # hojas: la luz "envuelve" la copa para que su parte de abajo no quede negra
+MODO_PISO = 4        # piso: cemento en el corredor y baldosas de barro dentro de la casa
 
 ESCALA_DETALLE = 0.2          # la textura de detalle del suelo se repite cada 5 unidades
 ALTURA_ZOCALO = -0.6          # altura (y del mundo) hasta donde llega el zócalo de las paredes
 COLOR_ZOCALO = (0.47, 0.53, 0.58)
+
+# Interior de la casa (x0, x1, z0, z1) y altura del cielo raso: ahí el piso es de baldosa de
+# barro, la pared tiene rodapié rojizo, el techo es de vigas y caña, y hay luz de lámparas.
+CASA = (-8.6, 23.13, -29.52, 19.54)
+TECHO_CASA = 10.7
+PISO_CASA = -2.2
+LUZ_INTERIOR = (0.30, 0.28, 0.24)
 
 _VERTEX_SHADER = """
 #version 120
@@ -122,6 +130,11 @@ uniform int modo;
 uniform float escalaDetalle;
 uniform float alturaZocalo;
 uniform vec3 colorZocalo;
+uniform vec4 casa;
+uniform float techoCasa;
+uniform float pisoCasa;
+uniform vec3 luzInterior;
+uniform mat4 vistaInversa;
 varying vec3 vPosOjo;
 varying vec3 vMundo;
 varying vec3 vNormal;
@@ -129,9 +142,19 @@ varying vec3 vArriba;
 varying vec4 vColor;
 varying vec2 vUV;
 
+float dentroCasa(vec3 p, float margen) {
+    return (p.x > casa.x - margen && p.x < casa.y + margen &&
+            p.z > casa.z - margen && p.z < casa.w + margen && p.y < techoCasa + 0.05) ? 1.0 : 0.0;
+}
+
 void main() {
     vec4 tex = texture2D(textura, vUV);
     vec4 base = vColor * tex;
+
+    vec3 N = normalize(vNormal);
+    if (!gl_FrontFacing) N = -N;
+    vec3 Nmundo = normalize(mat3(vistaInversa) * N);
+    float interior = dentroCasa(vMundo, -0.05);
 
     if (modo == 1) {
         // Suelo: color general (textura grande) x detalle fino repetido en dos escalas.
@@ -144,17 +167,39 @@ void main() {
         float det = mix(tierra, pasto, tex.a) * 2.0;
         base = vec4(vColor.rgb * tex.rgb * det, 1.0);
     } else if (modo == 2) {
-        // Pared encalada: zócalo gris azulado y una línea de sombra encima
-        if (vMundo.y < alturaZocalo) {
-            float lum = dot(tex.rgb, vec3(0.333));
+        vec2 centro = vec2((casa.x + casa.y) * 0.5, (casa.z + casa.w) * 0.5);
+        float lum = dot(tex.rgb, vec3(0.333));
+        // ¿Es la cara interior de la pared (mira hacia el centro de la casa)?
+        // (las caras horizontales, como el cielo raso, no necesitan esa prueba)
+        float haciaCentro = abs(Nmundo.y) > 0.7 ? 1.0 : step(0.0, dot(Nmundo.xz, centro - vMundo.xz));
+        interior = dentroCasa(vMundo, 0.15) * haciaCentro;
+        if (interior > 0.5 && Nmundo.y < -0.7) {
+            // Cielo raso: vigas de madera y caña, como en la sala del museo
+            float viga = step(fract(vMundo.z / 3.2), 0.11);
+            float cana = step(0.5, fract(vMundo.x * 5.0));
+            vec3 colorCana = mix(vec3(0.60, 0.46, 0.30), vec3(0.50, 0.37, 0.23), cana);
+            base.rgb = mix(colorCana, vec3(0.32, 0.18, 0.10), viga) * (0.85 + 0.3 * lum);
+        } else if (interior > 0.5) {
+            // Pared interior blanca con rodapié de barro
+            if (vMundo.y < pisoCasa + 0.55) base.rgb = vec3(0.60, 0.31, 0.21) * (0.85 + 0.3 * lum);
+        } else if (vMundo.y < alturaZocalo) {
+            // Exterior: zócalo gris azulado y una línea de sombra encima
             base.rgb = colorZocalo * (0.78 + 0.32 * lum);
         } else if (vMundo.y < alturaZocalo + 0.15) {
             base.rgb *= 0.72;
         }
+    } else if (modo == 4 && interior > 0.5) {
+        // Baldosas de barro cocido con juntas
+        vec2 t = vMundo.xz / 1.35;
+        vec2 c = floor(t);
+        vec2 f = fract(t);
+        float h = fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453);
+        vec3 barro = mix(vec3(0.50, 0.27, 0.19), vec3(0.62, 0.35, 0.24), h);
+        float lum = dot(tex.rgb, vec3(0.333)) / 0.5;
+        float junta = step(0.035, f.x) * step(0.035, f.y) * step(f.x, 0.965) * step(f.y, 0.965);
+        base.rgb = mix(vec3(0.50, 0.45, 0.40), barro * (0.9 + 0.15 * lum), junta);
     }
 
-    vec3 N = normalize(vNormal);
-    if (!gl_FrontFacing) N = -N;
     vec3 V = normalize(-vPosOjo);
 
     // Ambiente hemisférico: lo que mira al cielo recibe más luz que lo que mira al suelo
@@ -177,6 +222,8 @@ void main() {
 
     // Las hojas dejan pasar algo de luz del sol: la copa se ve verde también por debajo
     luz += gl_LightSource[0].diffuse.rgb * 0.3 * follaje;
+    // Lámparas dentro de la casa
+    luz += luzInterior * interior;
 
     vec3 color = base.rgb * luz + brillo * gl_FrontMaterial.specular.rgb;
 
@@ -220,7 +267,8 @@ def _crear_shader():
         if not glGetProgramiv(prog, GL_LINK_STATUS):
             log = glGetProgramInfoLog(prog)
             raise RuntimeError(log.decode() if isinstance(log, bytes) else str(log))
-        for nombre in ("textura", "detalle", "modo", "escalaDetalle", "alturaZocalo", "colorZocalo", "vistaInversa"):
+        for nombre in ("textura", "detalle", "modo", "escalaDetalle", "alturaZocalo", "colorZocalo", "vistaInversa",
+                       "casa", "techoCasa", "pisoCasa", "luzInterior"):
             _uniformes[nombre] = glGetUniformLocation(prog, nombre)
         glUseProgram(prog)
         glUniform1i(_uniformes["textura"], 0)
@@ -229,6 +277,10 @@ def _crear_shader():
         glUniform1f(_uniformes["escalaDetalle"], ESCALA_DETALLE)
         glUniform1f(_uniformes["alturaZocalo"], ALTURA_ZOCALO)
         glUniform3f(_uniformes["colorZocalo"], *COLOR_ZOCALO)
+        glUniform4f(_uniformes["casa"], *CASA)
+        glUniform1f(_uniformes["techoCasa"], TECHO_CASA)
+        glUniform1f(_uniformes["pisoCasa"], PISO_CASA)
+        glUniform3f(_uniformes["luzInterior"], *LUZ_INTERIOR)
         glUseProgram(0)
         _shader = prog
         print("Iluminación por píxel activada (GLSL).")

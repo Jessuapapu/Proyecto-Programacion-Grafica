@@ -3,6 +3,7 @@ import sys
 from Clases import Modelo
 from Escenas.Arboles import Bosque as _Bosque
 from Escenas.Terreno import Terreno as _Terreno
+from Escenas.Museo import Museo as _Museo
 from Escenas import Iluminacion
 
 # Ruta base dinámica
@@ -23,7 +24,7 @@ Hacienda = Modelo.Modelos(
     modelo_path("modelosObj", "Hacienda", "Hacienda.mtl"),
     modelo_path("modelosObj", "colision_hacienda.obj"),
     excluir_materiales=("Tereno",),
-    modos={"Paredes": Iluminacion.MODO_PARED},
+    modos={"Paredes": Iluminacion.MODO_PARED, "Suelo": Iluminacion.MODO_PISO},
 )
 
 Mesa = Modelo.Modelos(
@@ -58,4 +59,7 @@ Arbolito = Modelo.Modelos(
 Terreno = _Terreno(modelo_path("modelosObj", "Terreno"))
 Bosque = _Bosque(modelo_path("modelosObj", "Terreno", "vegetacion.json"))
 
-ListHacienda = [Hacienda, Terreno, Mesa, Armas, Caballo, Retrato, Arbolito, Bosque]
+# Sala de los Héroes dentro de la casa (bustos, retratos y letrero; textos en museo.json)
+Museo = _Museo(modelo_path("modelosObj", "Museo"))
+
+ListHacienda = [Hacienda, Terreno, Mesa, Armas, Caballo, Retrato, Arbolito, Museo, Bosque]

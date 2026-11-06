@@ -89,6 +89,7 @@ def mover(camara, escena, skybox_, nueva_pos):
     if nueva_pos[1] < suelo:
         nueva_pos = [nueva_pos[0], suelo, nueva_pos[2]]
     if (not escena.Modelos[0].collides(nueva_pos) and not Hac.Bosque.collides(nueva_pos)
+            and not Hac.Museo.collides(nueva_pos)
             and not skybox_.collides(nueva_pos)):
         camara.cam_pos = nueva_pos
 
