@@ -154,7 +154,9 @@ Recreation of the museum room "Sala de los Héroes de la Batalla" (`Escenas/Muse
 - Framed portraits with labels and a room sign: "Héroes de la Batalla de San Jacinto –
   14 de septiembre de 1856".
 - Terracotta tile floor, red baseboard, wooden beam and cane ceiling and interior lamp light.
-- Names, positions and images are in `modelosObj/Museo/museo.json` (edit the `nombre` fields).
+- Two gold-framed glass display cases (`Escenas/Vitrinas.py`) with revolvers and socket bayonets on
+  red velvet and muzzle-loading rifles mounted inside the glass, with small labels.
+- Names, positions, images and display cases are in `modelosObj/Museo/museo.json`.
 
 ## 🎵 Credits
 

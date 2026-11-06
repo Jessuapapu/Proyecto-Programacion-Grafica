@@ -1,15 +1,118 @@
 {
-  "_ayuda": "Sala de los Heroes dentro de la casa hacienda. Los textos se pueden editar aqui; x/z son coordenadas del mundo, rot en grados (0 = mira hacia +z). Los nombres de los bustos salen de las placas de la foto y de El 19 Digital ('bustos del Teniente Adan Espinoza Solis, el General Jose Dolores Estrada y General Miguel Velez Morazan'). Los retratos no tienen nombre visible en la foto: escribe sus nombres en 'nombre' cuando los confirmes.",
+  "_ayuda": "Sala de los Heroes dentro de la casa hacienda. Los textos se pueden editar aqui; x/z son coordenadas del mundo, rot en grados (0 = mira hacia +z). Los nombres de los bustos salen de las placas de la foto y de El 19 Digital ('bustos del Teniente Adan Espinoza Solis, el General Jose Dolores Estrada y General Miguel Velez Morazan'). Los retratos no tienen nombre visible en la foto: escribe sus nombres en 'nombre' cuando los confirmes. Vitrinas: x/z del centro, rot, y cuantos revolveres, bayonetas y fusiles lleva cada una.",
   "piso_y": -2.2,
   "bustos": [
-    {"nombre": ["GENERAL", "MIGUEL VÉLEZ", "MORAZÁN"], "x": -7.0, "z": 1.9, "rot": 90, "variante": 1},
-    {"nombre": ["GENERAL", "JOSÉ DOLORES", "ESTRADA"], "x": -7.0, "z": -3.3, "rot": 90, "variante": 2},
-    {"nombre": ["TENIENTE", "ADÁN ESPINOZA", "SOLÍS"], "x": -7.0, "z": -8.5, "rot": 90, "variante": 3}
+    {
+      "nombre": [
+        "GENERAL",
+        "MIGUEL VÉLEZ",
+        "MORAZÁN"
+      ],
+      "x": -7.0,
+      "z": 1.9,
+      "rot": 90,
+      "variante": 1
+    },
+    {
+      "nombre": [
+        "GENERAL",
+        "JOSÉ DOLORES",
+        "ESTRADA"
+      ],
+      "x": -7.0,
+      "z": -3.3,
+      "rot": 90,
+      "variante": 2
+    },
+    {
+      "nombre": [
+        "TENIENTE",
+        "ADÁN ESPINOZA",
+        "SOLÍS"
+      ],
+      "x": -7.0,
+      "z": -8.5,
+      "rot": 90,
+      "variante": 3
+    }
   ],
   "retratos": [
-    {"imagen": "retrato_1.jpg", "nombre": ["Héroe de la Batalla", "de San Jacinto, 1856"], "x": -3.6, "y": 4.7, "z": -29.42, "rot": 0, "alto": 3.0},
-    {"imagen": "retrato_2.jpg", "nombre": ["Héroe de la Batalla", "de San Jacinto, 1856"], "x": 1.6, "y": 4.7, "z": -29.42, "rot": 0, "alto": 3.0},
-    {"imagen": "retrato_3.jpg", "nombre": ["Héroe de la Batalla", "de San Jacinto, 1856"], "x": 7.2, "y": 4.7, "z": -29.42, "rot": 0, "alto": 3.0}
+    {
+      "imagen": "retrato_1.jpg",
+      "nombre": [
+        "Héroe de la Batalla",
+        "de San Jacinto, 1856"
+      ],
+      "x": -3.6,
+      "y": 4.7,
+      "z": -29.42,
+      "rot": 0,
+      "alto": 3.0
+    },
+    {
+      "imagen": "retrato_2.jpg",
+      "nombre": [
+        "Héroe de la Batalla",
+        "de San Jacinto, 1856"
+      ],
+      "x": 1.6,
+      "y": 4.7,
+      "z": -29.42,
+      "rot": 0,
+      "alto": 3.0
+    },
+    {
+      "imagen": "retrato_3.jpg",
+      "nombre": [
+        "Héroe de la Batalla",
+        "de San Jacinto, 1856"
+      ],
+      "x": 7.2,
+      "y": 4.7,
+      "z": -29.42,
+      "rot": 0,
+      "alto": 3.0
+    },
+    {
+      "imagen": "retrato_4.jpg",
+      "nombre": [
+        "Héroe de la Batalla",
+        "de San Jacinto, 1856"
+      ],
+      "x": 13.0,
+      "y": 4.7,
+      "z": -29.42,
+      "rot": 0,
+      "alto": 3.0
+    }
   ],
-  "titulo": {"texto": ["HÉROES DE LA BATALLA DE SAN JACINTO", "14 de septiembre de 1856"], "x": 2.0, "y": 8.3, "z": -29.42, "rot": 0, "ancho": 13.0}
+  "titulo": {
+    "texto": [
+      "HÉROES DE LA BATALLA DE SAN JACINTO",
+      "14 de septiembre de 1856"
+    ],
+    "x": 4.7,
+    "y": 8.3,
+    "z": -29.42,
+    "rot": 0,
+    "ancho": 14.0
+  },
+  "vitrinas": [
+    {
+      "x": 7.5,
+      "z": -14.0,
+      "rot": 0,
+      "revolveres": 6,
+      "bayonetas": 3,
+      "fusiles": 3
+    },
+    {
+      "x": 7.5,
+      "z": 2.5,
+      "rot": 180,
+      "revolveres": 5,
+      "bayonetas": 2,
+      "fusiles": 3
+    }
+  ]
 }

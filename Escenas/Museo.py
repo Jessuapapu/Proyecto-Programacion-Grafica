@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 from OpenGL.GL import *
 
 from Clases.Modelo import Modelos
+from Escenas import Vitrinas
 
 FUENTES = ["georgiab.ttf", "timesbd.ttf", "DejaVuSerif-Bold.ttf", "LiberationSerif-Bold.ttf",
            "arialbd.ttf", "DejaVuSans-Bold.ttf"]
@@ -164,7 +165,9 @@ class Museo:
     def __init__(self, carpeta):
         self.carpeta = carpeta
         self.modelo = None
+        self.vidrio = None
         self._obstaculos = []      # (x, z, radio, y_max)
+        self._cajas = []           # (x0, x1, z0, z1, y_max)
 
     def cargarmodelos(self):
         with open(os.path.join(self.carpeta, "museo.json"), "r", encoding="utf-8") as f:
@@ -249,6 +252,27 @@ class Museo:
             agregar("Letrero", _transformar(q, x, y, z, rot))
             agregar("Marco", _transformar(_caja(0, -alto / 2 - 0.05, 0.02, ancho + 0.1, alto + 0.1, 0.06), x, y, z, rot))
 
+        # ---------------- Vitrinas con armas
+        vidrios = []
+        colores.update({k: v for k, v in Vitrinas.COLORES.items() if k != "Vidrio"})
+        for i, v in enumerate(cfg.get("vitrinas", [])):
+            opacos, vidrio, tarjetas, caja_col = Vitrinas.construir(
+                float(v["x"]), piso, float(v["z"]), float(v.get("rot", 0)),
+                n_revolveres=int(v.get("revolveres", 6)), n_bayonetas=int(v.get("bayonetas", 3)),
+                n_fusiles=int(v.get("fusiles", 3)), semilla=i)
+            for mat, tris in opacos.items():
+                agregar(mat, _tris_a_datos(tris))
+            vidrios.append(_tris_a_datos(vidrio))
+            for j, (esq, texto) in enumerate(tarjetas):
+                mat = f"Tarjeta_{i}_{j}"
+                ancho_px = int(260 * np.linalg.norm(esq[1] - esq[0]) / 0.3)
+                img = Image.new("RGB", (max(ancho_px, 120), 120 if len(texto) == 1 else 40 + 36 * len(texto)), (246, 244, 238))
+                _texto_centrado(img, texto, (35, 30, 28), 12, 34 if len(texto) == 1 else 28, margen=10)
+                texturas[mat] = _subir(img)
+                colores[mat] = (1.0, 1.0, 1.0)
+                agregar(mat, _quad(*esq))
+            self._cajas.append(caja_col)
+
         datos = {k: np.concatenate(v) for k, v in datos.items()}
         self.modelo = Modelos.desde_datos(datos, colores)
         for mat, tex in texturas.items():
@@ -260,11 +284,24 @@ class Museo:
             bronce["ns"] = 220.0
         if "Marmol" in self.modelo.materiales:
             self.modelo.materiales["Marmol"]["ks"] = [0.25, 0.25, 0.25]
+        for mat, ks, ns in (("Oro", [0.9, 0.75, 0.45], 240.0), ("MetalArma", [0.55, 0.55, 0.55], 300.0),
+                            ("MetalOxido", [0.2, 0.18, 0.16], 120.0), ("Terciopelo", [0.03, 0.02, 0.02], 16.0)):
+            if mat in self.modelo.materiales:
+                self.modelo.materiales[mat]["ks"] = ks
+                self.modelo.materiales[mat]["ns"] = ns
+        if vidrios:
+            self.vidrio = Modelos.desde_datos({"Vidrio": np.concatenate(vidrios)}, {"Vidrio": Vitrinas.COLORES["Vidrio"]})
+            self.vidrio.materiales["Vidrio"]["alfa"] = 0.16
+            self.vidrio.materiales["Vidrio"]["ks"] = [1.0, 1.0, 1.0]
+            self.vidrio.materiales["Vidrio"]["ns"] = 500.0
 
     def collides(self, punto):
         x, y, z = punto
         for ox, oz, r, ymax in self._obstaculos:
             if (x - ox) ** 2 + (z - oz) ** 2 < r * r and y < ymax:
+                return True
+        for x0, x1, z0, z1, ymax in self._cajas:
+            if x0 <= x <= x1 and z0 <= z <= z1 and y < ymax:
                 return True
         return False
 
@@ -272,6 +309,18 @@ class Museo:
         if self.modelo is not None:
             self.modelo.draw()
 
+    def draw_transparente(self):
+        """Vidrios de las vitrinas: se dibujan al final, mezclados y sin escribir profundidad."""
+        if self.vidrio is None:
+            return
+        glPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glDepthMask(GL_FALSE)
+        self.vidrio.draw()
+        glPopAttrib()
+
     def liberar(self):
-        if self.modelo is not None:
-            self.modelo.liberar()
+        for m in (self.modelo, self.vidrio):
+            if m is not None:
+                m.liberar()

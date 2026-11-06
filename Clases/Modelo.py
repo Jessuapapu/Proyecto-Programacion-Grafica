@@ -392,12 +392,13 @@ class Modelos:
             _iluminacion.set_modo(self.modos.get(mat, _iluminacion.MODO_NORMAL))
 
             glEnable(GL_TEXTURE_2D)
+            alfa = m.get('alfa', 1.0)       # < 1 para materiales translúcidos (vidrio)
             if tex:
                 glBindTexture(GL_TEXTURE_2D, tex)
-                glColor4f(1.0, 1.0, 1.0, 1.0)
+                glColor4f(1.0, 1.0, 1.0, alfa)
             else:
                 glBindTexture(GL_TEXTURE_2D, textura_blanca())
-                glColor4f(m['kd'][0], m['kd'][1], m['kd'][2], 1.0)
+                glColor4f(m['kd'][0], m['kd'][1], m['kd'][2], alfa)
 
             # Hojas, plantas y otras texturas con transparencia
             if tex and m['transparente']:

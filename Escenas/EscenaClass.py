@@ -14,6 +14,10 @@ class Escenas:
     def DibujarEscena(self):
         for Modelo in self.Modelos:
             Modelo.draw()
+        # Segunda pasada: objetos translúcidos (vidrios), siempre al final
+        for Modelo in self.Modelos:
+            if hasattr(Modelo, "draw_transparente"):
+                Modelo.draw_transparente()
         
 
         
