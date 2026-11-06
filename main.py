@@ -47,6 +47,7 @@ from OpenGL.GLU import *
 import Clases.Camara as Camara
 import Clases.Util as Util
 import Clases.Joycon as Joycon
+from Clases import Ventana, Colision
 from Escenas import EscenaClass as Escenas, skybox
 from Escenas.Nubes import Nubes
 from Escenas import Hacienda as Hac
@@ -81,15 +82,15 @@ def init_opengl(width, height):
 ALTURA_MINIMA_SUELO = 2.0
 
 
-def mover(camara, escena, skybox_, nueva_pos):
-    # solo mueve la camara si no choca con la casa, los arboles, el museo o el borde del mapa
-    suelo = Hac.Terreno.altura_en(nueva_pos[0], nueva_pos[2]) + ALTURA_MINIMA_SUELO
-    if nueva_pos[1] < suelo:
-        nueva_pos = [nueva_pos[0], suelo, nueva_pos[2]]
-    if (not escena.Modelos[0].collides(nueva_pos) and not Hac.Bosque.collides(nueva_pos)
-            and not Hac.Museo.collides(nueva_pos)
-            and not skybox_.collides(nueva_pos)):
-        camara.cam_pos = nueva_pos
+def mover(camara, mundo, delta):
+    # mueve la camara: se resbala por paredes y objetos en vez de quedarse pegada
+    # y nunca queda debajo del suelo
+    destino = [camara.cam_pos[i] + delta[i] for i in range(3)]
+    suelo = Hac.Terreno.altura_en(destino[0], destino[2]) + ALTURA_MINIMA_SUELO
+    destino[1] = max(destino[1], suelo)
+    p = mundo.mover(camara.cam_pos, destino)
+    p[1] = max(p[1], Hac.Terreno.altura_en(p[0], p[2]) + ALTURA_MINIMA_SUELO)
+    camara.cam_pos = p
 
 
 def capturar_raton(activo):
@@ -103,7 +104,7 @@ def capturar_raton(activo):
 BOTON_PAUSA_JOYSTICK = 7
 
 
-def mover_camara(camara, Control, Hacienda, SkyBoxes):
+def mover_camara(camara, Control, mundo):
     # mouse, teclado y control
     keys = pygame.key.get_pressed()
 
@@ -114,22 +115,24 @@ def mover_camara(camara, Control, Hacienda, SkyBoxes):
 
     # vector hacia la derecha de la camara
     r = Util.normalizar(Util.cross(camara.cam_target, camara.up))
+    t = camara.cam_target
     v = camara.velocidad
 
-    # teclado
+    # se suma todo el movimiento del frame y se mueve una sola vez
+    adelante, lado, arriba = 0.0, 0.0, 0.0
     if keys[K_w]:
-        mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] + camara.cam_target[i] * v for i in range(3)])
+        adelante += 1
     if keys[K_s]:
-        mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] - camara.cam_target[i] * v for i in range(3)])
+        adelante -= 1
     if keys[K_a]:
-        mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] - r[i] * v for i in range(3)])
+        lado -= 1
     if keys[K_d]:
-        mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[i] + r[i] * v for i in range(3)])
+        lado += 1
     # subir / bajar
     if keys[K_SPACE]:
-        mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[0], camara.cam_pos[1] + v, camara.cam_pos[2]])
+        arriba += 1
     if keys[K_LSHIFT] or keys[K_RSHIFT]:
-        mover(camara, Hacienda, SkyBoxes, [camara.cam_pos[0], camara.cam_pos[1] - v, camara.cam_pos[2]])
+        arriba -= 1
 
     # control
     if Control.JoyStick is not None:
@@ -139,13 +142,15 @@ def mover_camara(camara, Control, Hacienda, SkyBoxes):
         except pygame.error:
             izq, der = [0, 0], [0, 0]
             Control.desactivar()
-
-        mover(camara, Hacienda, SkyBoxes,
-              [camara.cam_pos[i] + camara.cam_target[i] * (-Control.IDV * izq[1]) * v for i in range(3)])
-        mover(camara, Hacienda, SkyBoxes,
-              [camara.cam_pos[i] + r[i] * (Control.IDV * izq[0]) * v for i in range(3)])
+        adelante += -Control.IDV * izq[1]
+        lado += Control.IDV * izq[0]
         camara.cam_yaw += der[0] * Control.Sensi
         camara.cam_pitch -= der[1] * Control.Sensi
+
+    if adelante or lado or arriba:
+        delta = [(t[i] * adelante + r[i] * lado) * v for i in range(3)]
+        delta[1] += arriba * v
+        mover(camara, mundo, delta)
 
     # para que no se de vuelta la camara
     camara.cam_pitch = max(-89.0, min(89.0, camara.cam_pitch))
@@ -153,62 +158,44 @@ def mover_camara(camara, Control, Hacienda, SkyBoxes):
     camara.cam_target = Util.normalizar(camara.cam_target)
 
 
-def main():
-    # zona muerta, sensibilidad, numero de control
-    pygame.joystick.init()
-    Control = Joycon.Joycon(0.3, 4, 0)
-    resultados = menu.mostrar_menu(Control)
-
-    sensibilidad = resultados["Configuracion"][0]
-    velocidad = resultados["Configuracion"][1]
-    volumen = resultados.get("Volumen", 5)
-    siempre_dia = resultados.get("SiempreDia", False)
-    Control = resultados["ControlConfiguracion"]
-
-    # pygame + opengl
-    # no usamos glut porque en windows daba error con glutInit
-    pygame.init()
-
-    # el menu cierra pygame asi que hay que volver a abrir el control
-    Control.__init__(Control.ZonaMuerta, Control.Sensi, 0, Control.IDV)
-
-    # pantalla completa con la resolucion del monitor
-    info = pygame.display.Info()
-    ancho, alto = info.current_w, info.current_h
-    pygame.display.set_mode((ancho, alto), DOUBLEBUF | OPENGL | RESIZABLE)
-    pygame.display.set_caption("Hacienda San Jacinto")
-
-    init_opengl(ancho, alto)
-
-    # sonidos
+def cargar_escena():
+    # se carga una sola vez, al volver al menu se queda en memoria
     sonido.cargar_efecto("Efecto_paso", "footstep.mp3")
-
-    # camara
-    # empieza frente al corredor
-    camara = Camara.Camaras([0.0, 3.0, 45.0], 0.0, 0.0, velocidad, sensibilidad, [0.0, 1.0, 0.0])
-    pygame.event.set_grab(True)
-    pygame.mouse.set_visible(False)
-
-    # cargar modelos
-    Hacienda = Escenas.Escenas(Hac.ListHacienda)
-    Hacienda.cargar()
-    SkyBoxes = skybox.Skybox(250)
-    nubes = Nubes()
-
-    # luces
+    hacienda = Escenas.Escenas(Hac.ListHacienda)
+    hacienda.cargar()
+    sky = skybox.Skybox(250)
+    # colisiones: casa, cercas, caballos y muebles (malla) + troncos, pedestales y vitrinas
+    malla = Colision.MallaColision.desde_obj(Hac.modelo_path("modelosObj", "colision_hacienda.obj"))
+    mundo = Colision.Mundo(malla, [Hac.Bosque, Hac.Museo], limite=sky.size - 0.5)
+    escena = {"hacienda": hacienda, "skybox": sky, "nubes": Nubes(), "mundo": mundo}
     iluminacion.init_lighting()
+    return escena
+
+
+def jugar(escena, Control, config):
+    # loop del juego, devuelve "menu" o "salir"
+    Hacienda, SkyBoxes, nubes = escena["hacienda"], escena["skybox"], escena["nubes"]
+    sensibilidad, velocidad = config["sensibilidad"], config["velocidad"]
+
+    ancho, alto = Ventana.tamano()
+    init_opengl(ancho, alto)
+    iluminacion.init_lighting(usar_shader=False)
+
+    # camara, empieza frente al corredor
+    camara = Camara.Camaras([0.0, 3.0, 45.0], 0.0, 0.0, velocidad, sensibilidad, [0.0, 1.0, 0.0])
+    capturar_raton(True)
 
     clock = pygame.time.Clock()
-    running = True
+    resultado = None
 
     # musica con el volumen del menu
     sonido.reproducir_musica("musica1", True)
     if pygame.mixer.get_init():
-        pygame.mixer.music.set_volume(volumen / 10.0)
+        pygame.mixer.music.set_volume(config["volumen"] / 10.0)
 
-    pausa = Pausa.MenuPausa(volumen, sensibilidad, velocidad, siempre_dia)
+    pausa = Pausa.MenuPausa(config["volumen"], sensibilidad, velocidad, config["siempre_dia"])
     tiempo_juego = 0.0      # no avanza en pausa ni en modo siempre de dia
-    if siempre_dia:
+    if pausa.siempre_dia:
         tiempo_juego = iluminacion.segundos_para_hora(iluminacion.HORA_SIEMPRE_DIA)
     tiempo_nubes = 0.0      # las nubes si se mueven en siempre de dia
     pygame.mouse.get_rel()  # lo que se movio el mouse mientras cargaba
@@ -221,7 +208,7 @@ def main():
         pausa.cerrar()
         capturar_raton(True)
 
-    while running:
+    while resultado is None:
         dt = clock.tick(60) / 1000.0
         if not pausa.abierto and not pausa.siempre_dia:
             tiempo_juego += dt
@@ -229,7 +216,7 @@ def main():
             tiempo_nubes += dt
         camara.velocidad = velocidad * FACTOR_VELOCIDAD * dt
 
-        # ciclo dia/noche, 5 segundos = 1 hora
+        # ciclo dia/noche, 7.5 segundos = 1 hora (3 minutos el dia completo)
         # en siempre de dia la hora se queda fija
         if pausa.siempre_dia:
             tiempo_juego = iluminacion.segundos_para_hora(iluminacion.HORA_SIEMPRE_DIA)
@@ -238,7 +225,11 @@ def main():
         # eventos
         for event in pygame.event.get():
             if event.type == QUIT:
-                running = False
+                resultado = "salir"
+
+            # F11 pantalla completa
+            elif event.type == KEYDOWN and event.key == K_F11:
+                Ventana.alternar()
 
             # ESC abre o cierra la pausa
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
@@ -256,25 +247,25 @@ def main():
             elif event.type == pygame.WINDOWFOCUSLOST and not pausa.abierto:
                 pausar()
 
-            # mouse dentro del menu de pausa
-            elif pausa.abierto and event.type in (MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION):
-                accion = pausa.manejar_evento(event)
-                if accion == "continuar":
-                    reanudar()
-                elif accion == "salir":
-                    running = False
-
-            # al cambiar el tamaño solo se ajusta el viewport
-            # (volver a llamar set_mode borra las texturas)
-            elif event.type == VIDEORESIZE:
-                ancho, alto = event.w, event.h
-                init_opengl(ancho, alto)
-
             # control conectado / desconectado
             elif event.type == pygame.JOYDEVICEADDED:
                 Control.__init__(Control.ZonaMuerta, Control.Sensi, 0, Control.IDV)
             elif event.type == pygame.JOYDEVICEREMOVED:
                 Control.desactivar()
+
+            # mouse, teclado y control dentro del menu de pausa
+            elif pausa.abierto:
+                accion = pausa.manejar_evento(event)
+                if accion == "continuar":
+                    reanudar()
+                elif accion in ("menu", "salir"):
+                    resultado = accion
+
+        # si cambio el tamaño de la ventana (o pantalla completa) se ajusta el viewport
+        # (no se llama set_mode porque borra las texturas)
+        if Ventana.tamano() != (ancho, alto):
+            ancho, alto = Ventana.tamano()
+            init_opengl(ancho, alto)
 
         # valores de la configuracion de la pausa
         velocidad = pausa.valores["velocidad"]
@@ -283,7 +274,7 @@ def main():
             pygame.mixer.music.set_volume(pausa.valores["volumen"] / 10.0)
 
         if not pausa.abierto:
-            mover_camara(camara, Control, Hacienda, SkyBoxes)
+            mover_camara(camara, Control, escena["mundo"])
 
         # dibujar
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -314,14 +305,47 @@ def main():
 
         # pausa encima de todo
         if pausa.abierto:
-            pausa.dibujar(ancho, alto, hora)
+            pausa.dibujar(ancho, alto, hora, dt)
 
         pygame.display.flip()
 
-    # liberar memoria antes de cerrar
-    Hacienda.liberar()
-    nubes.liberar()
+    # lo que se cambio en la pausa se guarda para el menu
+    config["volumen"] = pausa.valores["volumen"]
+    config["sensibilidad"] = pausa.valores["sensibilidad"]
+    config["velocidad"] = pausa.valores["velocidad"]
+    config["siempre_dia"] = pausa.siempre_dia
     pausa.liberar()
+    sonido.detener_musica()
+    capturar_raton(False)
+    return resultado
+
+
+def main():
+    # una sola ventana para el menu y el juego
+    pygame.init()
+    pygame.joystick.init()
+    Ventana.crear(completa=False)
+    Control = Joycon.Joycon(0.3, 4, 0)    # zona muerta, sensibilidad, numero de control
+
+    config = {"sensibilidad": 1.0, "velocidad": 2.0, "volumen": 5, "siempre_dia": False}
+    escena = None
+
+    while True:
+        resultados = menu.mostrar_menu(Control, config["sensibilidad"], config["volumen"],
+                                       config["velocidad"], config["siempre_dia"])
+        config["sensibilidad"], config["velocidad"] = resultados["Configuracion"]
+        config["volumen"] = resultados.get("Volumen", 5)
+        config["siempre_dia"] = resultados.get("SiempreDia", False)
+        Control = resultados["ControlConfiguracion"]
+
+        if escena is None:
+            escena = cargar_escena()
+        if jugar(escena, Control, config) == "salir":
+            break
+
+    # liberar memoria antes de cerrar
+    escena["hacienda"].liberar()
+    escena["nubes"].liberar()
     pygame.joystick.quit()
     sonido.cerrar_sonidos()
     pygame.quit()

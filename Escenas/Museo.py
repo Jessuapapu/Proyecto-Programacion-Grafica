@@ -298,6 +298,35 @@ class Museo:
             self.vidrio.materiales["Vidrio"]["ks"] = [1.0, 1.0, 1.0]
             self.vidrio.materiales["Vidrio"]["ns"] = 500.0
 
+    def empuje(self, p, r):
+        # empuja una esfera fuera de los pedestales y las vitrinas (solo en horizontal)
+        x, y, z = p
+        for ox, oz, radio, ymax in self._obstaculos:
+            if y - r >= ymax:
+                continue
+            dx, dz = x - ox, z - oz
+            d = math.hypot(dx, dz)
+            falta = radio + r - d
+            if falta > 0:
+                if d < 1e-6:
+                    dx, dz, d = 1.0, 0.0, 1.0
+                return (dx / d * falta, 0.0, dz / d * falta)
+        for x0, x1, z0, z1, ymax in self._cajas:
+            if y - r >= ymax:
+                continue
+            qx, qz = min(max(x, x0), x1), min(max(z, z0), z1)
+            dx, dz = x - qx, z - qz
+            d = math.hypot(dx, dz)
+            if d >= r:
+                continue
+            if d > 1e-6:
+                return (dx / d * (r - d), 0.0, dz / d * (r - d))
+            # adentro de la caja: sale por el lado mas cercano
+            salidas = [(x - x0 + r, (-1, 0)), (x1 - x + r, (1, 0)), (z - z0 + r, (0, -1)), (z1 - z + r, (0, 1))]
+            dist, (sx, sz) = min(salidas)
+            return (sx * dist, 0.0, sz * dist)
+        return None
+
     def collides(self, punto):
         # pedestales como circulos y vitrinas como rectangulos
         x, y, z = punto

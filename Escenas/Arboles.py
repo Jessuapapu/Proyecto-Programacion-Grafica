@@ -45,6 +45,28 @@ class Bosque:
                 for cz in range(int(math.floor((z - radio) / CELDA)), int(math.floor((z + radio) / CELDA)) + 1):
                     self._celdas[(cx, cz)].append(tronco)
 
+    def empuje(self, p, r):
+        # empuja una esfera fuera de los troncos (solo en horizontal)
+        x, y, z = p
+        vistos = set()
+        for cx in range(int(math.floor((x - r) / CELDA)), int(math.floor((x + r) / CELDA)) + 1):
+            for cz in range(int(math.floor((z - r) / CELDA)), int(math.floor((z + r) / CELDA)) + 1):
+                for t in self._celdas.get((cx, cz), ()):
+                    if t in vistos:
+                        continue
+                    vistos.add(t)
+                    ax, ay, az, radio, alto = t
+                    if not (ay - 1.0 <= y <= ay + alto):
+                        continue
+                    dx, dz = x - ax, z - az
+                    d = math.hypot(dx, dz)
+                    falta = radio + r - d
+                    if falta > 0:
+                        if d < 1e-6:
+                            dx, dz, d = 1.0, 0.0, 1.0
+                        return (dx / d * falta, 0.0, dz / d * falta)
+        return None
+
     def collides(self, punto):
         x, y, z = punto
         for ax, ay, az, radio, alto in self._celdas.get((int(math.floor(x / CELDA)), int(math.floor(z / CELDA))), ()):

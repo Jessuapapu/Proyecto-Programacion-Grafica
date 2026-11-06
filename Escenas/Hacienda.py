@@ -16,12 +16,11 @@ else:
 def modelo_path(*relative_path):
     return os.path.join(BASE_PATH, *relative_path)
 
-# solo la hacienda usa malla de colision
 # el terreno viejo (Tereno) no se dibuja porque ahora hay terreno con relieve
 Hacienda = Modelo.Modelos(
     modelo_path("modelosObj", "Hacienda", "Hacienda.obj"),
     modelo_path("modelosObj", "Hacienda", "Hacienda.mtl"),
-    modelo_path("modelosObj", "colision_hacienda.obj"),
+    None,               # las colisiones las maneja Clases/Colision.py
     excluir_materiales=("Tereno",),
     modos={"Paredes": Iluminacion.MODO_PARED, "Suelo": Iluminacion.MODO_PISO},
 )

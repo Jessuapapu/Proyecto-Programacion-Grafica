@@ -7,8 +7,9 @@ import sys
 
 import numpy as np
 import pygame
+from OpenGL.GL import *
 
-from Clases import Joycon
+from Clases import Joycon, Ventana
 from Audio import Audios
 
 # ruta base
@@ -312,16 +313,29 @@ class Menu:
         self.brillos = [0.0] * len(self.opciones)
         self.rects = [pygame.Rect(96, 300 + i * 74, 360, 58) for i in range(len(self.opciones))]
 
+        self.raton = (ANCHO // 2, ALTO // 2)    # posicion del mouse en coordenadas del menu
         self._cargar_fondo()
         self._crear_particulas()
         self.sonidos = {"hover": _tono(900, 1200, 0.05, 0.10), "click": _tono(520, 880, 0.12, 0.22),
                         "tick": _tono(1300, 1300, 0.03, 0.08), "atras": _tono(700, 420, 0.12, 0.18)}
 
     # recursos
+    def redimensionar(self):
+        # cuando cambia el ancho del menu (otra proporcion de ventana)
+        self._cargar_fondo()
+        for p in self.particulas:
+            p[0] = p[0] % ANCHO
+        if self.panel:
+            self.panel.rect.center = (ANCHO // 2 + 120, ALTO // 2 + 10)
+
     def _cargar_fondo(self):
         ruta = os.path.join(BASE_PATH, "Recursos", "Imagenes", "hacienda.jpeg")
         try:
-            img = pygame.image.load(ruta).convert()
+            img = pygame.image.load(ruta)
+            try:
+                img = img.convert()
+            except pygame.error:
+                pass
         except Exception as e:
             print(f"⚠️ No se encontró el fondo del menú: {e}")
             img = pygame.Surface((ANCHO, ALTO))
@@ -384,7 +398,9 @@ class Menu:
             Deslizador("VELOCIDAD", self.valores, "velocidad", 1, 20, 0.5, (30, 236, w - 60, 58), formato="{:g}"),
             Selector("CIELO", ["CICLO DÍA/NOCHE", "SIEMPRE DE DÍA"], lambda: int(self.siempre_dia),
                      self._poner_cielo, (30, 304, w - 60, 58)),
-            Boton("REGRESAR", lambda: self.cerrar_panel(), ((w - 260) // 2, 432, 260, 54)),
+            Selector("PANTALLA", ["VENTANA", "COMPLETA"], lambda: int(Ventana.pantalla_completa),
+                     lambda v: Ventana.poner_pantalla_completa(bool(v)), (30, 372, w - 60, 58)),
+            Boton("REGRESAR", lambda: self.cerrar_panel(), ((w - 260) // 2, 500, 260, 54)),
         ]
 
         def extra(sup, panel, f):
@@ -393,10 +409,10 @@ class Menu:
             else:
                 txt, color = "Control: no conectado (puedes usar teclado y ratón)", GRIS
             t = _texto(f["chico"], txt, color)
-            sup.blit(t, t.get_rect(center=(panel.rect.width // 2, 394)))
-            pygame.draw.circle(sup, color, (panel.rect.width // 2 - t.get_width() // 2 - 14, 394), 5)
+            sup.blit(t, t.get_rect(center=(panel.rect.width // 2, 462)))
+            pygame.draw.circle(sup, color, (panel.rect.width // 2 - t.get_width() // 2 - 14, 462), 5)
 
-        self._abrir(Panel("CONFIGURACIÓN", (w, 510), widgets, extra))
+        self._abrir(Panel("CONFIGURACIÓN", (w, 578), widgets, extra))
 
     def _poner_cielo(self, valor):
         self.siempre_dia = bool(valor)
@@ -406,6 +422,7 @@ class Menu:
         teclas = [
             (["W"], "Avanzar"), (["S"], "Retroceder"), (["A"], "Izquierda"), (["D"], "Derecha"),
             (["ESPACIO"], "Subir"), (["SHIFT"], "Bajar"), (["RATÓN"], "Mirar alrededor"), (["ESC"], "Menú de pausa"),
+            (["F11"], "Pantalla completa"),
         ]
         mando = [("Palanca izquierda", "Moverse"), ("Palanca derecha", "Mirar"), ("Start", "Menú de pausa")]
 
@@ -424,7 +441,7 @@ class Menu:
                 t = _texto(f["texto"], accion, TENUE)
                 t.set_alpha(int(255 * a))
                 sup.blit(t, (x, y + 7))
-            y = y0 + 4 * 56 + 16
+            y = y0 + (len(teclas) + 1) // 2 * 56 + 16
             t = _texto(f["normal"], "CONTROL", DORADO)
             sup.blit(t, (x0, y))
             for i, (boton, accion) in enumerate(mando):
@@ -436,8 +453,8 @@ class Menu:
                 sup.blit(t1, (x0 + 10 + i * 240, y + 38))
                 sup.blit(t2, (x0 + 10 + i * 240, y + 62))
 
-        self._abrir(Panel("AYUDA", (w, 540), [Boton("REGRESAR", lambda: self.cerrar_panel(),
-                                                       ((w - 260) // 2, 462, 260, 54))], extra))
+        self._abrir(Panel("AYUDA", (w, 600), [Boton("REGRESAR", lambda: self.cerrar_panel(),
+                                                       ((w - 260) // 2, 522, 260, 54))], extra))
 
     def _tecla(self, sup, texto, x, y, f, alfa=1.0):
         # dibuja una tecla y devuelve donde termina
@@ -640,7 +657,7 @@ class Menu:
                 self.start_game = True
 
     def dibujar(self, sup, dt):
-        mx, my = pygame.mouse.get_pos()
+        mx, my = self.raton
         # fondo que se mueve despacio y con el mouse
         sobra_x = self.fondo.get_width() - ANCHO
         sobra_y = self.fondo.get_height() - ALTO
@@ -716,7 +733,7 @@ class Menu:
         if self.panel:
             ayuda = "↑↓ Elegir   ←→ Ajustar   Enter Aceptar   Esc Regresar"
         else:
-            ayuda = "↑↓ Elegir   Enter Aceptar   Ratón o control también funcionan"
+            ayuda = "↑↓ Elegir   Enter Aceptar   F11 Pantalla completa"
         t = _texto(self.f["chico"], ayuda, GRIS)
         t.set_alpha(int(220 * a))
         sup.blit(t, t.get_rect(bottomright=(ANCHO - 32, ALTO - 24)))
@@ -771,16 +788,85 @@ class Menu:
         sup.blit(capa, (p.rect.x, self._y_panel()))
 
 
-def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=5, velocidad_inicial=2.0):
+def _ajustar_ancho(win_w, win_h):
+    # el menu siempre mide 768 de alto y el ancho sigue la proporcion de la ventana
+    global ANCHO
+    nuevo = max(1024, min(2400, int(round(ALTO * win_w / max(1, win_h)))))
+    cambio = nuevo != ANCHO
+    ANCHO = nuevo
+    return cambio
+
+
+class _Pantalla:
+    # pasa la superficie del menu a la ventana de opengl como textura
+
+    def __init__(self):
+        self.tex = glGenTextures(1)
+        self.tam = None
+        self.escala, self.ox, self.oy = 1.0, 0, 0
+
+    def a_menu(self, pos):
+        # coordenadas de la ventana a coordenadas del menu
+        return (int((pos[0] - self.ox) / self.escala), int((pos[1] - self.oy) / self.escala))
+
+    def mostrar(self, sup, win_w, win_h):
+        w, h = sup.get_size()
+        self.escala = min(win_w / w, win_h / h)
+        self.ox = (win_w - w * self.escala) / 2
+        self.oy = (win_h - h * self.escala) / 2
+        if hasattr(pygame.image, "tobytes"):
+            datos = pygame.image.tobytes(sup, "RGB", False)
+        else:
+            datos = pygame.image.tostring(sup, "RGB", False)
+
+        glViewport(0, 0, win_w, win_h)
+        glClearColor(0.0, 0.0, 0.0, 1.0)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(0, win_w, win_h, 0, -1, 1)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        for cap in (GL_DEPTH_TEST, GL_LIGHTING, GL_FOG, GL_BLEND, GL_CULL_FACE):
+            glDisable(cap)
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, self.tex)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+        if self.tam != (w, h):
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, datos)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+            self.tam = (w, h)
+        else:
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, datos)
+        glColor3f(1.0, 1.0, 1.0)
+        x0, y0 = self.ox, self.oy
+        x1, y1 = x0 + w * self.escala, y0 + h * self.escala
+        glBegin(GL_QUADS)
+        glTexCoord2f(0, 0); glVertex2f(x0, y0)
+        glTexCoord2f(1, 0); glVertex2f(x1, y0)
+        glTexCoord2f(1, 1); glVertex2f(x1, y1)
+        glTexCoord2f(0, 1); glVertex2f(x0, y1)
+        glEnd()
+        glBindTexture(GL_TEXTURE_2D, 0)
+        glDisable(GL_TEXTURE_2D)
+
+    def liberar(self):
+        glDeleteTextures([self.tex])
+
+
+def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicial=5, velocidad_inicial=2.0,
+                 siempre_dia_inicial=False):
     # loop del menu, devuelve la configuracion al darle iniciar
-    pygame.init()
+    # usa la ventana que ya creo main.py (Ventana.crear) y la deja abierta para el juego
     try:
         pygame.mixer.init()
     except pygame.error as e:
-        print(f"⚠️ Audio no disponible: {e}")
+        print(f"Audio no disponible: {e}")
 
-    pantalla = pygame.display.set_mode((ANCHO, ALTO))
-    pygame.display.set_caption("Hacienda San Jacinto - Menú")
+    pygame.display.set_caption("Hacienda San Jacinto")
     reloj = pygame.time.Clock()
 
     musica = Audios.Musica()
@@ -789,11 +875,28 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
     if pygame.mixer.get_init():
         pygame.mixer.music.set_volume(sonido_inicial / 10.0)
 
+    win_w, win_h = Ventana.tamano()
+    _ajustar_ancho(win_w, win_h)
+    lienzo = pygame.Surface((ANCHO, ALTO))
+    pantalla = _Pantalla()
+
     sonido = sonido_inicial if isinstance(sonido_inicial, (int, float)) else 5
-    menu = Menu(control=control, sensibilidad=sensibilidad_inicial, sonido=sonido, velocidad=velocidad_inicial)
+    menu = Menu(control=control, sensibilidad=sensibilidad_inicial, sonido=sonido, velocidad=velocidad_inicial,
+                siempre_dia=siempre_dia_inicial)
+    pygame.mouse.set_visible(True)
+    pygame.event.set_grab(False)
 
     while not menu.start_game:
         dt = min(reloj.tick(60) / 1000.0, 0.05)
+
+        # si cambio el tamaño de la ventana se ajusta el menu
+        tam = Ventana.tamano()
+        if tam != (win_w, win_h):
+            win_w, win_h = tam
+            if _ajustar_ancho(win_w, win_h):
+                lienzo = pygame.Surface((ANCHO, ALTO))
+                menu.redimensionar()
+
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 pygame.quit()
@@ -802,14 +905,24 @@ def mostrar_menu(control: Joycon.Joycon, sensibilidad_inicial=1.0, sonido_inicia
                 control.__init__(control.ZonaMuerta, control.Sensi, 0, control.IDV)
             elif evento.type == pygame.JOYDEVICEREMOVED:
                 control.desactivar()
+            elif evento.type == pygame.KEYDOWN and evento.key == pygame.K_F11:
+                Ventana.alternar()
+                continue
+            if evento.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+                datos = dict(evento.dict)
+                datos["pos"] = pantalla.a_menu(evento.pos)
+                evento = pygame.event.Event(evento.type, datos)
             menu.manejar_evento(evento)
 
+        menu.raton = pantalla.a_menu(pygame.mouse.get_pos())
         menu.actualizar(dt)
-        menu.dibujar(pantalla, dt)
+        menu.dibujar(lienzo, dt)
+        pantalla.mostrar(lienzo, win_w, win_h)
         pygame.display.flip()
 
+    # la ultima imagen ("Cargando la hacienda...") se queda mientras carga el juego
     musica.detener_musica()
-    pygame.quit()
+    pantalla.liberar()
 
     return {
         "Configuracion": (menu.valores["sensibilidad"], menu.valores["velocidad"]),

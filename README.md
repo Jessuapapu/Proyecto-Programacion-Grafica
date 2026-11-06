@@ -109,7 +109,7 @@ dist/main.exe
 
 ## 💡 Lighting
 
-- Continuous day/night cycle (5 s = 1 simulated hour, the tour starts at 9:00).
+- Continuous day/night cycle (7.5 s = 1 simulated hour, a full day lasts 3 minutes; the tour starts at 9:00).
 - Sky mode selectable in the main menu settings or in the pause menu: day/night cycle or always day (fixed at 11:00).
 - Directional sun that rises, crosses the sky and sets, with warm light at sunrise/sunset.
 - Soft moonlight at night, sky fill light and hemispheric ambient light.
@@ -158,6 +158,22 @@ Recreation of the museum room "Sala de los Héroes de la Batalla" (`Escenas/Muse
   red velvet and muzzle-loading rifles mounted inside the glass, with small labels.
 - Names, positions, images and display cases are in `modelosObj/Museo/museo.json`.
 
+## 🏠 House model fixes
+
+`Recursos/Herramientas/arreglar_casa.py` cleans up `modelosObj/Hacienda/Hacienda.obj` (it can be run again safely):
+same-size tiles on every roof face, ridge caps on the ridge and hips, wooden planks under the eaves (new `Cielo` material),
+wooden beams over the columns, wall/floor/fence/column textures without stretching, duplicated wall faces removed and inner
+wall faces pointing the right way. It also stands up the table that was lying on its side (`Mesas.obj`) and fixes the rifle
+texture path in `arbolito3.mtl`.
+
+## 🧱 Collisions
+
+`Clases/Colision.py`: the player is a capsule (two spheres, head and chest, radius 0.45) that is pushed out of the
+triangles of `modelosObj/colision_hacienda.obj` (house, roof, fences, corrals, horses, tables) and out of the tree
+trunks, busts and display cases. Instead of stopping dead, the camera slides along walls; long moves are split in
+short steps so fast movement never goes through a wall, and the camera keeps a small distance so it does not clip
+into walls.
+
 ## 🧭 Main menu
 
 `Escenas/Menu.py` is an animated, fully navigable start menu:
@@ -167,6 +183,7 @@ Recreation of the museum room "Sala de los Héroes de la Batalla" (`Escenas/Muse
 - Works with mouse, keyboard (arrows/WASD, Enter, Esc, mouse wheel on sliders) or controller (D-pad/stick, A to accept, B to go back).
 - Panels with transitions: settings (draggable sliders, sky-mode selector, controller status), help with drawn keys, credits and an exit confirmation.
 - Starting the tour fades the screen to black while the music fades out.
+- Window / fullscreen option in the settings (also in the pause menu and with F11). The menu and the game share the same OpenGL window, so starting the tour no longer closes and reopens it.
 
 ## ☁️ Dynamic clouds
 

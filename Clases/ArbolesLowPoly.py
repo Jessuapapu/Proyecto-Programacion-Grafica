@@ -160,8 +160,8 @@ def guanacaste(rng):
     a = _Arbol()
     alto = rng.uniform(7.0, 9.0)
     tope = np.array([rng.uniform(-0.6, 0.6), alto, rng.uniform(-0.6, 0.6)])
-    a.agregar("TroncoGris", tubo([(0, -0.5, 0), tope * 0.5 + (0, -0.25, 0), tope], [1.15, 1.0, 0.85], 7, giro=rng.uniform(0, 6)))
-    a.agregar("TroncoGris", nudo(tope, 0.95))
+    a.agregar("TroncoGris", tubo([(0, -0.5, 0), tope * 0.5 + (0, -0.25, 0), tope - (0, 0.4, 0)], [1.15, 1.0, 0.6], 7,
+                                 giro=rng.uniform(0, 6)))
     copa_y = alto + rng.uniform(9.0, 11.0)
     n = int(rng.integers(3, 5))
     base_ang = rng.uniform(0, 2 * math.pi)
@@ -170,7 +170,9 @@ def guanacaste(rng):
         r = rng.uniform(7.0, 10.0)
         medio = tope + np.array([math.cos(ang) * r * 0.45, (copa_y - alto) * 0.5, math.sin(ang) * r * 0.45])
         fin = np.array([math.cos(ang) * r, copa_y - rng.uniform(0.5, 1.5), math.sin(ang) * r])
-        a.agregar("TroncoGris", tubo([tope - (0, 0.3, 0), medio, fin], [0.72, 0.45, 0.25], 5))
+        # la rama nace adentro del tronco y sale por el costado, asi no queda escalon
+        salida = tope + np.array([math.cos(ang) * 0.5, 0.9, math.sin(ang) * 0.5])
+        a.agregar("TroncoGris", tubo([tope - (0, 1.6, 0), salida, medio, fin + (0, 1.2, 0)], [0.78, 0.66, 0.45, 0.25], 6))
         a.agregar(_hoja(rng, ["Hoja1", "Hoja2", "Hoja2"]),
                   gota(fin + (0, 1.4, 0), (rng.uniform(6.5, 8.0), rng.uniform(2.4, 3.0), rng.uniform(6.5, 8.0)), 1, rng))
     # copa ancha de arriba
@@ -189,16 +191,20 @@ def acacia(rng):
     p0 = np.array([0.0, -0.5, 0.0])
     p1 = np.array([rng.uniform(-1.5, 1.5), rng.uniform(7, 9), rng.uniform(-1.5, 1.5)])
     p2 = p1 + np.array([rng.uniform(-2.5, 2.5), rng.uniform(5, 7), rng.uniform(-2.5, 2.5)])
-    a.agregar("Tronco", tubo([p0, p1, p2], [0.72, 0.52, 0.36], 6))
+    # tronco curvo (curva de bezier por p0, p1, p2) que sigue hasta adentro de la primera copa
+    def curva(t):
+        return (1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t ** 2 * p2
+    ts = np.linspace(0, 1, 6)
+    a.agregar("Tronco", tubo([curva(t) for t in ts] + [p2 + (0, 1.5, 0)],
+                             [0.72 - 0.36 * t for t in ts] + [0.3], 6))
     pisos = int(rng.integers(2, 4))
     for i in range(pisos):
         t = i / max(1, pisos - 1)
         y = p2[1] + 1.5 + i * rng.uniform(2.6, 3.4)
         radio = 9.0 - 2.6 * i + rng.uniform(-1, 1)
         centro = np.array([p2[0] + rng.uniform(-2.5, 2.5), y, p2[2] + rng.uniform(-2.5, 2.5)])
-        rama_ini = p1 + (p2 - p1) * (0.4 + 0.6 * t)
-        a.agregar("Tronco", tubo([rama_ini, centro - (0, 0.8, 0)], [0.4, 0.22], 5))
-        a.agregar("Tronco", nudo(rama_ini, 0.5))
+        tr = 0.65 + 0.35 * t
+        a.agregar("Tronco", tubo([curva(tr - 0.06), centro], [0.32, 0.2], 5))
         a.agregar(_hoja(rng, ["Hoja2", "Hoja3", "HojaSeca"]),
                   gota(centro, (radio, rng.uniform(1.1, 1.5), radio * rng.uniform(0.8, 1.0)), 1, rng, 0.18, 0.6))
         for _ in range(2):
@@ -214,11 +220,13 @@ def redondo(rng):
     a = _Arbol()
     alto = rng.uniform(5.0, 6.5)
     tope = np.array([rng.uniform(-0.4, 0.4), alto, rng.uniform(-0.4, 0.4)])
-    a.agregar("Tronco", tubo([(0, -0.5, 0), tope], [1.35, 1.0], 7))
-    a.agregar("Tronco", nudo(tope, 1.1))
+    a.agregar("Tronco", tubo([(0, -0.5, 0), tope * 0.6, tope - (0, 0.4, 0)], [1.35, 1.15, 0.75], 7))
+    base_ang = rng.uniform(0, 2 * math.pi)
     for i in range(3):
-        ang = rng.uniform(0, 2 * math.pi)
-        a.agregar("Tronco", tubo([tope - (0, 0.3, 0), tope + (math.cos(ang) * 3.5, 5.0, math.sin(ang) * 3.5)], [0.65, 0.35], 5))
+        ang = base_ang + i * 2 * math.pi / 3 + rng.uniform(-0.3, 0.3)     # repartidas para que no se crucen
+        salida = tope + np.array([math.cos(ang) * 0.7, 1.0, math.sin(ang) * 0.7])
+        fin = tope + np.array([math.cos(ang) * 3.0, 7.5, math.sin(ang) * 3.0])     # termina dentro de la copa
+        a.agregar("Tronco", tubo([tope - (0, 1.4, 0), salida, fin], [0.85, 0.62, 0.35], 6))
     centro = tope + np.array([0, 9.0, 0])
     a.agregar(_hoja(rng, ["Hoja1", "Hoja2"]), gota(centro, (8.5, 7.0, 8.5), 1, rng, 0.14, 0.3))
     for _ in range(int(rng.integers(4, 6))):
@@ -234,9 +242,11 @@ def joven(rng):
     a = _Arbol()
     alto = rng.uniform(9, 12)
     tope = np.array([rng.uniform(-1, 1), alto, rng.uniform(-1, 1)])
-    a.agregar("Tronco", tubo([(0, -0.5, 0), tope], [0.45, 0.28], 5))
+    # el tronco llega hasta el centro de la primera copa para que no quede flotando
+    c0 = tope + np.array([rng.uniform(-0.6, 0.6), 1.5, rng.uniform(-0.6, 0.6)])
+    a.agregar("Tronco", tubo([(0, -0.5, 0), tope, c0], [0.45, 0.3, 0.2], 5))
     for i in range(int(rng.integers(2, 4))):
-        c = tope + np.array([rng.uniform(-2, 2), rng.uniform(1.5, 4.0) + i * 1.2, rng.uniform(-2, 2)])
+        c = c0 + np.array([rng.uniform(-1.6, 1.6), i * rng.uniform(1.4, 2.0), rng.uniform(-1.6, 1.6)]) * (i > 0)
         s = rng.uniform(3.0, 4.2)
         a.agregar(_hoja(rng, ["Hoja2", "Hoja3", "Hoja3"]), gota(c, (s, s * 0.8, s), 1 if i == 0 else 0, rng))
     return a.resultado()
@@ -246,11 +256,11 @@ def lejano(rng):
     # pocos poligonos, solo se ve de lejos
     a = _Arbol()
     alto = rng.uniform(7, 10)
-    a.agregar("Tronco", tubo([(0, -0.5, 0), (0, alto, 0)], [1.1, 0.75], 5))
+    a.agregar("Tronco", tubo([(0, -0.5, 0), (0, alto + 3.0, 0)], [1.1, 0.6], 5))
     for i in range(int(rng.integers(2, 4))):
         ang = rng.uniform(0, 2 * math.pi)
-        r = rng.uniform(0, 4.5)
-        c = (math.cos(ang) * r, alto + rng.uniform(5, 9), math.sin(ang) * r)
+        r = rng.uniform(0, 3.5) * (i > 0)
+        c = (math.cos(ang) * r, alto + 3.0 + i * rng.uniform(2.0, 3.5), math.sin(ang) * r)
         a.agregar(_hoja(rng, ["Hoja1", "Hoja2", "Hoja2", "Hoja3"]),
                   gota(c, (rng.uniform(7, 10), rng.uniform(3.5, 5.5), rng.uniform(7, 10)), 0, rng, 0.25))
     return a.resultado()

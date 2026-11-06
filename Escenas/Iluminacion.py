@@ -6,7 +6,7 @@ import numpy as np
 from OpenGL.GL import *
 
 # parametros
-SEGUNDOS_POR_HORA = 5.0     # 5 segundos = 1 hora, el dia completo dura 2 minutos
+SEGUNDOS_POR_HORA = 7.5     # 7.5 segundos = 1 hora, el dia completo dura 3 minutos
 HORA_INICIAL = 9.0          # empieza en la mañana
 HORA_SIEMPRE_DIA = 11.0     # hora para el modo siempre de dia
 INTENSIDAD_SOL = 0.85

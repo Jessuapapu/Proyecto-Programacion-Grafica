@@ -1,207 +1,244 @@
-# menu de pausa (ESC o start)
+# menu de pausa (ESC o start), con el mismo estilo que el menu principal
 # se dibuja con pygame en una superficie y se pasa como textura encima de la escena
 import pygame
 from OpenGL.GL import *
 
-COLOR_PANEL = (103, 77, 64)
-COLOR_HOVER = (133, 107, 94)
-COLOR_BORDE = (255, 255, 255)
-COLOR_TEXTO = (255, 255, 255)
-COLOR_BARRA = (70, 52, 43)
-COLOR_RELLENO = (214, 168, 110)
-
-
-class _Boton:
-    def __init__(self, texto, accion):
-        self.texto = texto
-        self.accion = accion
-        self.rect = pygame.Rect(0, 0, 0, 0)
-
-
-class _Slider:
-    def __init__(self, clave, etiqueta, minimo, maximo, paso):
-        self.clave = clave
-        self.etiqueta = etiqueta
-        self.min = minimo
-        self.max = maximo
-        self.paso = paso
-        self.rect = pygame.Rect(0, 0, 0, 0)
-
-    def valor_desde_x(self, x):
-        # posicion del mouse a valor del slider
-        t = max(0.0, min(1.0, (x - self.rect.x) / max(1, self.rect.width)))
-        valor = self.min + t * (self.max - self.min)
-        return round(round(valor / self.paso) * self.paso, 2)
+from Clases import Ventana
+from Escenas import Menu as M
 
 
 class MenuPausa:
 
     def __init__(self, volumen, sensibilidad, velocidad, siempre_dia=False):
-        # volumen, sensibilidad y velocidad
         self.abierto = False
         self.siempre_dia = siempre_dia
-        self.vista = "principal"            # principal o config
         self.valores = {"volumen": volumen, "sensibilidad": sensibilidad, "velocidad": velocidad}
-
-        self.botones = {
-            "principal": [_Boton("CONTINUAR", "continuar"),
-                          _Boton("CONFIGURACION", "config"),
-                          _Boton("SALIR DEL JUEGO", "salir")],
-            "config": [_Boton("", "cielo"),
-                       _Boton("REGRESAR", "regresar")],
-        }
-        self.sliders = [_Slider("volumen", "VOLUMEN", 0, 10, 1),
-                        _Slider("sensibilidad", "SENSIBILIDAD", 0.1, 2.0, 0.1),
-                        _Slider("velocidad", "VELOCIDAD", 1, 20, 0.5)]
-
+        self.vista = "principal"            # principal o config
+        self.foco = 0
+        self.anim = 0.0                     # 0 a 1 al abrir
+        self.tiempo = 0.0
+        self._accion = None
         self._arrastrando = None
-        self._tam_ventana = None
+        self._ultimo_eje = 0.0
         self._textura = None
-        self.panel = pygame.Rect(0, 0, 0, 0)
+        self._f = None
+        self._sonidos = None
+        self._rect = pygame.Rect(0, 0, 0, 0)    # donde quedo el panel en la ventana
+        self._escala = 1.0
+        self._hora = 12.0
 
-    # tamaños
-    def _diseno(self, ancho, alto):
-        # calcula posiciones segun el tamaño de la ventana
-        # s = escala respecto a 768 px de alto
-        if self._tam_ventana == (ancho, alto):
-            return
-        self._tam_ventana = (ancho, alto)
-        s = max(0.75, min(1.8, alto / 768.0))
-        self.s = s
-        pw, ph = int(460 * s), int(470 * s)
-        self.panel = pygame.Rect((ancho - pw) // 2, (alto - ph) // 2, pw, ph)
+        def accion(nombre):
+            return lambda: setattr(self, "_accion", nombre)
 
-        self.fuente = pygame.font.SysFont("Consolas", int(18 * s), bold=True)
-        self.fuente_titulo = pygame.font.SysFont("Consolas", int(34 * s), bold=True)
-        self.fuente_peq = pygame.font.SysFont("Consolas", int(14 * s))
-
-        bw, bh = int(300 * s), int(48 * s)
-        x = (pw - bw) // 2
-        for i, b in enumerate(self.botones["principal"]):
-            b.rect = pygame.Rect(x, int(130 * s) + i * int(68 * s), bw, bh)
-        self.botones["config"][0].rect = pygame.Rect(x, int(318 * s), bw, bh)
-        self.botones["config"][1].rect = pygame.Rect(x, int(380 * s), bw, bh)
-
-        for i, sl in enumerate(self.sliders):
-            sl.rect = pygame.Rect(int(60 * s), int(135 * s) + i * int(60 * s), pw - int(120 * s), max(6, int(10 * s)))
+        w = 520
+        self.principal = [
+            M.Boton("CONTINUAR", accion("continuar"), ((w - 360) // 2, 128, 360, 56)),
+            M.Boton("CONFIGURACIÓN", lambda: self._cambiar_vista("config"), ((w - 360) // 2, 196, 360, 56)),
+            M.Boton("VOLVER AL MENÚ", accion("menu"), ((w - 360) // 2, 264, 360, 56)),
+            M.Boton("SALIR DEL JUEGO", accion("salir"), ((w - 360) // 2, 332, 360, 56)),
+        ]
+        w2 = 700
+        self.config = [
+            M.Deslizador("VOLUMEN", self.valores, "volumen", 0, 10, 1, (30, 100, w2 - 60, 58)),
+            M.Deslizador("SENSIBILIDAD", self.valores, "sensibilidad", 0.1, 2.0, 0.1, (30, 168, w2 - 60, 58),
+                         formato="{:.1f}"),
+            M.Deslizador("VELOCIDAD", self.valores, "velocidad", 1, 20, 0.5, (30, 236, w2 - 60, 58)),
+            M.Selector("CIELO", ["CICLO DÍA/NOCHE", "SIEMPRE DE DÍA"], lambda: int(self.siempre_dia),
+                       lambda v: setattr(self, "siempre_dia", bool(v)), (30, 304, w2 - 60, 58)),
+            M.Selector("PANTALLA", ["VENTANA", "COMPLETA"], lambda: int(Ventana.pantalla_completa),
+                       lambda v: Ventana.poner_pantalla_completa(bool(v)), (30, 372, w2 - 60, 58)),
+            M.Boton("REGRESAR", lambda: self._cambiar_vista("principal"), ((w2 - 260) // 2, 456, 260, 54)),
+        ]
+        self.tamanos = {"principal": (w, 440), "config": (w2, 540)}
 
     # estado
+    @property
+    def widgets(self):
+        return self.principal if self.vista == "principal" else self.config
+
     def abrir(self):
         self.abierto = True
         self.vista = "principal"
+        self.foco = 0
+        self.anim = 0.0
+        self.tiempo = 0.0
         self._arrastrando = None
 
     def cerrar(self):
         self.abierto = False
         self._arrastrando = None
 
-    def _local(self, pos):
-        # coordenadas de la ventana a coordenadas del panel
-        return pos[0] - self.panel.x, pos[1] - self.panel.y
-
-    def manejar_evento(self, evento):
-        # clics y arrastres, devuelve 'continuar', 'salir' o None
-        if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
-            pos = self._local(evento.pos)
-            for b in self.botones[self.vista]:
-                if b.rect.collidepoint(pos):
-                    if b.accion == "config":
-                        self.vista = "config"
-                        return None
-                    if b.accion == "regresar":
-                        self.vista = "principal"
-                        return None
-                    if b.accion == "cielo":
-                        self.siempre_dia = not self.siempre_dia
-                        return None
-                    return b.accion
-            if self.vista == "config":
-                for sl in self.sliders:
-                    if sl.rect.inflate(int(16 * self.s), int(24 * self.s)).collidepoint(pos):
-                        self._arrastrando = sl
-                        self.valores[sl.clave] = sl.valor_desde_x(pos[0])
-        elif evento.type == pygame.MOUSEMOTION and self._arrastrando is not None:
-            pos = self._local(evento.pos)
-            self.valores[self._arrastrando.clave] = self._arrastrando.valor_desde_x(pos[0])
-        elif evento.type == pygame.MOUSEBUTTONUP and evento.button == 1:
-            self._arrastrando = None
-        return None
+    def _cambiar_vista(self, vista):
+        self.vista = vista
+        self.foco = 0
+        self.tiempo = 0.0
 
     def atras(self):
         # ESC: si esta en config regresa, si no cierra la pausa
         if self.vista == "config":
-            self.vista = "principal"
+            self.sonar("atras")
+            self._cambiar_vista("principal")
             return False
         return True
 
+    def sonar(self, nombre):
+        # los widgets del menu llaman a esto
+        if self._sonidos is None:
+            self._sonidos = {"hover": M._tono(900, 1200, 0.05, 0.10), "click": M._tono(520, 880, 0.12, 0.22),
+                             "tick": M._tono(1300, 1300, 0.03, 0.08), "atras": M._tono(700, 420, 0.12, 0.18)}
+        s = self._sonidos.get(nombre)
+        if s and pygame.mixer.get_init():
+            s.set_volume(0.3 + 0.7 * self.valores["volumen"] / 10.0)
+            s.play()
+
+    # entrada
+    def _local(self, pos):
+        # coordenadas de la ventana a coordenadas del panel
+        return ((pos[0] - self._rect.x) / self._escala, (pos[1] - self._rect.y) / self._escala)
+
+    def _mover_foco(self, paso):
+        self.foco = (self.foco + paso) % len(self.widgets)
+        self.sonar("hover")
+
+    def manejar_evento(self, e):
+        # devuelve 'continuar', 'menu', 'salir' o None
+        self._accion = None
+        ws = self.widgets
+        if e.type == pygame.KEYDOWN:
+            if e.key in (pygame.K_UP, pygame.K_w):
+                self._mover_foco(-1)
+            elif e.key in (pygame.K_DOWN, pygame.K_s, pygame.K_TAB):
+                self._mover_foco(1)
+            elif e.key in (pygame.K_LEFT, pygame.K_a):
+                ws[self.foco].ajustar(-1, self)
+            elif e.key in (pygame.K_RIGHT, pygame.K_d):
+                ws[self.foco].ajustar(1, self)
+            elif e.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+                ws[self.foco].activar(self)
+        elif e.type == pygame.JOYHATMOTION:
+            hx, hy = e.value
+            if hy:
+                self._mover_foco(-hy)
+            elif hx:
+                ws[self.foco].ajustar(hx, self)
+        elif e.type == pygame.JOYAXISMOTION and e.axis in (0, 1):
+            ahora = pygame.time.get_ticks() / 1000.0
+            if abs(e.value) > 0.6 and ahora - self._ultimo_eje > 0.22:
+                self._ultimo_eje = ahora
+                if e.axis == 1:
+                    self._mover_foco(1 if e.value > 0 else -1)
+                else:
+                    ws[self.foco].ajustar(1 if e.value > 0 else -1, self)
+        elif e.type == pygame.JOYBUTTONDOWN:
+            if e.button == 0:
+                ws[self.foco].activar(self)
+            elif e.button == 1 and self.vista == "config":
+                self.atras()
+        elif e.type == pygame.MOUSEMOTION:
+            local = self._local(e.pos)
+            if self._arrastrando:
+                self._arrastrando.desde_x(local[0])
+            else:
+                for i, w in enumerate(ws):
+                    if w.contiene(local) and i != self.foco:
+                        self.foco = i
+                        self.sonar("hover")
+        elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+            local = self._local(e.pos)
+            for i, w in enumerate(ws):
+                if not w.contiene(local):
+                    continue
+                self.foco = i
+                if isinstance(w, M.Deslizador):
+                    self._arrastrando = w
+                    if w.barra.inflate(30, 30).collidepoint(local):
+                        w.desde_x(local[0])
+                elif isinstance(w, M.Selector):
+                    w.clic(local, self)
+                else:
+                    w.activar(self)
+                break
+        elif e.type == pygame.MOUSEBUTTONUP and e.button == 1:
+            if self._arrastrando:
+                self.sonar("tick")
+            self._arrastrando = None
+        elif e.type == pygame.MOUSEWHEEL:
+            w = ws[self.foco]
+            if isinstance(w, (M.Deslizador, M.Selector)):
+                w.ajustar(1 if e.y > 0 else -1, self)
+        return self._accion
+
     # dibujo
-    def _texto_centrado(self, sup, fuente, texto, cx, y, color=COLOR_TEXTO):
-        img = fuente.render(texto, True, color)
-        sup.blit(img, (cx - img.get_width() // 2, y))
+    def _fuentes(self):
+        if self._f is None:
+            serif = "georgia,palatinolinotype,timesnewroman,dejavuserif,serif"
+            sans = "segoeui,trebuchetms,verdana,dejavusans,arial"
+            self._f = {
+                "panel": M._fuente(serif, 36, True),
+                "boton": M._fuente(sans, 25, True),
+                "normal": M._fuente(sans, 22, True),
+                "texto": M._fuente(sans, 20),
+                "chico": M._fuente(sans, 18, True),
+            }
+        return self._f
 
-    def _superficie(self, hora):
-        s = self.s
-        pw, ph = self.panel.size
+    def _superficie(self, dt):
+        f = self._fuentes()
+        pw, ph = self.tamanos[self.vista]
         sup = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        radio = int(14 * s)
-        pygame.draw.rect(sup, (*COLOR_PANEL, 245), sup.get_rect(), border_radius=radio)
-        pygame.draw.rect(sup, COLOR_BORDE, sup.get_rect(), max(2, int(2 * s)), border_radius=radio)
+        pygame.draw.rect(sup, (36, 25, 19, 240), sup.get_rect(), border_radius=18)
+        pygame.draw.rect(sup, M.DORADO, sup.get_rect(), 2, border_radius=18)
+        pygame.draw.rect(sup, (*M.DORADO, 60), sup.get_rect().inflate(-12, -12), 1, border_radius=14)
 
-        titulo = "PAUSA" if self.vista == "principal" else "CONFIGURACION"
-        self._texto_centrado(sup, self.fuente_titulo, titulo, pw // 2, int(28 * s))
-        h, m = int(hora), int((hora % 1) * 60)
-        modo = "siempre de dia" if self.siempre_dia else "ciclo dia/noche"
-        self._texto_centrado(sup, self.fuente_peq, f"Hora en la hacienda: {h:02d}:{m:02d} ({modo})", pw // 2, int(78 * s))
-        self.botones["config"][0].texto = "CIELO: SIEMPRE DE DIA" if self.siempre_dia else "CIELO: CICLO DIA/NOCHE"
+        titulo = "PAUSA" if self.vista == "principal" else "CONFIGURACIÓN"
+        t = M._texto(f["panel"], titulo, M.DORADO)
+        sup.blit(t, t.get_rect(midtop=(pw // 2, 22)))
+        ancho = int(t.get_width() * M._salida_cubica(self.tiempo / 0.5))
+        pygame.draw.line(sup, M.DORADO, (pw // 2 - ancho // 2, 70), (pw // 2 + ancho // 2, 70), 2)
 
-        raton = self._local(pygame.mouse.get_pos())
-        for b in self.botones[self.vista]:
-            color = COLOR_HOVER if b.rect.collidepoint(raton) else COLOR_PANEL
-            pygame.draw.rect(sup, color, b.rect, border_radius=int(10 * s))
-            pygame.draw.rect(sup, COLOR_BORDE, b.rect, max(2, int(2 * s)), border_radius=int(10 * s))
-            img = self.fuente.render(b.texto, True, COLOR_TEXTO)
-            sup.blit(img, (b.rect.centerx - img.get_width() // 2, b.rect.centery - img.get_height() // 2))
+        if self.vista == "principal":
+            h, m = int(self._hora), int((self._hora % 1) * 60)
+            modo = "siempre de día" if self.siempre_dia else "ciclo día/noche"
+            t = M._texto(f["texto"], f"Hora en la hacienda: {h:02d}:{m:02d} ({modo})", M.TENUE)
+            sup.blit(t, t.get_rect(center=(pw // 2, 96)))
 
-        # sliders
-        if self.vista == "config":
-            for sl in self.sliders:
-                valor = self.valores[sl.clave]
-                texto = f"{sl.etiqueta}: {valor:g}"
-                sup.blit(self.fuente.render(texto, True, COLOR_TEXTO), (sl.rect.x, sl.rect.y - int(28 * s)))
-                pygame.draw.rect(sup, COLOR_BARRA, sl.rect, border_radius=sl.rect.height // 2)
-                t = (valor - sl.min) / (sl.max - sl.min)
-                lleno = sl.rect.copy()
-                lleno.width = max(1, int(sl.rect.width * t))
-                pygame.draw.rect(sup, COLOR_RELLENO, lleno, border_radius=sl.rect.height // 2)
-                pygame.draw.circle(sup, COLOR_BORDE, (sl.rect.x + lleno.width, sl.rect.centery), int(9 * s))
+        for i, w in enumerate(self.widgets):
+            w.dibujar(sup, i == self.foco, dt, f)
 
-        pie = "ESC: continuar" if self.vista == "principal" else "ESC: regresar"
-        self._texto_centrado(sup, self.fuente_peq, pie, pw // 2, ph - int(30 * s), (230, 215, 200))
+        pie = "↑↓ Elegir   Enter Aceptar   Esc Continuar" if self.vista == "principal" \
+            else "↑↓ Elegir   ←→ Ajustar   Esc Regresar"
+        t = M._texto(f["chico"], pie, M.GRIS)
+        sup.blit(t, t.get_rect(midbottom=(pw // 2, ph - 16)))
         return sup
 
-    def dibujar(self, ancho, alto, hora):
-        self._diseno(ancho, alto)
-        sup = self._superficie(hora)
+    def dibujar(self, ancho, alto, hora, dt=1 / 60):
+        self._hora = hora
+        self.anim = min(1.0, self.anim + dt * 4)
+        self.tiempo += dt
+        a = M._salida_cubica(self.anim)
+
+        sup = self._superficie(dt)
         w, h = sup.get_size()
+        self._escala = max(0.7, min(1.8, alto / 768.0))
+        dw, dh = int(w * self._escala), int(h * self._escala)
+        x = (ancho - dw) // 2
+        y = (alto - dh) // 2 + int((1 - a) * 40 * self._escala)
+        self._rect = pygame.Rect(x, y, dw, dh)
+
         # pygame-ce usa tobytes y pygame viejo tostring
         if hasattr(pygame.image, "tobytes"):
             datos = pygame.image.tobytes(sup, "RGBA", False)
         else:
             datos = pygame.image.tostring(sup, "RGBA", False)
-
         if self._textura is None:
             self._textura = glGenTextures(1)
 
         # proyeccion 2d en pixeles
         glPushAttrib(GL_ALL_ATTRIB_BITS)
-        glDisable(GL_LIGHTING)
-        glDisable(GL_DEPTH_TEST)
-        glDisable(GL_FOG)
-        glDisable(GL_ALPHA_TEST)
-        glDisable(GL_CULL_FACE)
+        for cap in (GL_LIGHTING, GL_DEPTH_TEST, GL_FOG, GL_ALPHA_TEST, GL_CULL_FACE):
+            glDisable(cap)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
@@ -212,7 +249,7 @@ class MenuPausa:
 
         # oscurecer el fondo
         glDisable(GL_TEXTURE_2D)
-        glColor4f(0.0, 0.0, 0.0, 0.55)
+        glColor4f(0.03, 0.02, 0.01, 0.55 * a)
         glBegin(GL_QUADS)
         glVertex2f(0, 0); glVertex2f(ancho, 0); glVertex2f(ancho, alto); glVertex2f(0, alto)
         glEnd()
@@ -226,13 +263,12 @@ class MenuPausa:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-        glColor4f(1.0, 1.0, 1.0, 1.0)
-        x, y = self.panel.x, self.panel.y
+        glColor4f(1.0, 1.0, 1.0, a)
         glBegin(GL_QUADS)
         glTexCoord2f(0, 0); glVertex2f(x, y)
-        glTexCoord2f(1, 0); glVertex2f(x + w, y)
-        glTexCoord2f(1, 1); glVertex2f(x + w, y + h)
-        glTexCoord2f(0, 1); glVertex2f(x, y + h)
+        glTexCoord2f(1, 0); glVertex2f(x + dw, y)
+        glTexCoord2f(1, 1); glVertex2f(x + dw, y + dh)
+        glTexCoord2f(0, 1); glVertex2f(x, y + dh)
         glEnd()
         glBindTexture(GL_TEXTURE_2D, 0)
 
@@ -244,8 +280,5 @@ class MenuPausa:
 
     def liberar(self):
         if self._textura is not None:
-            try:
-                glDeleteTextures([self._textura])
-            except Exception:
-                pass
+            glDeleteTextures([self._textura])
             self._textura = None
