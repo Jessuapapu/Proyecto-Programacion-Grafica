@@ -7,6 +7,8 @@ import pygame
 from OpenGL.GL import *
 from OpenGL.arrays import vbo
 
+from Escenas import Iluminacion as _iluminacion
+
 # Cada vértice del VBO: posición (3) + coordenada de textura (2) + normal (3)
 FLOATS_POR_VERTICE = 8
 STRIDE = FLOATS_POR_VERTICE * 4
@@ -103,7 +105,12 @@ def _parsear_map(resto):
 
 
 class Modelos:
-    def __init__(self, path_obj, path_mtl, path_colision=None, culling_dist=300.0, cell_size=4.0, collision_radius=0.6):
+    def __init__(self, path_obj, path_mtl, path_colision=None, culling_dist=300.0, cell_size=4.0, collision_radius=0.6,
+                 excluir_materiales=(), modos=None):
+        """excluir_materiales: materiales del OBJ que no se cargan (p. ej. el terreno viejo).
+        modos: material -> modo de sombreado especial del shader (ver Iluminacion.MODO_*)."""
+        self.excluir_materiales = set(excluir_materiales)
+        self.modos = dict(modos or {})
         self.materiales = {}          # material -> propiedades
         self.vbos = {}                # material -> (VBO, cantidad de vértices)
         self.bounding_boxes = {}      # material -> (min, max)
@@ -198,7 +205,7 @@ class Modelos:
                             destino.extend((p[0], p[1], p[2], uv[0], uv[1], n[0], n[1], n[2]))
 
         for mat, lista in datos.items():
-            if lista:
+            if lista and mat not in self.excluir_materiales:
                 self._datos[mat] = np.array(lista, dtype=np.float32).reshape(-1, FLOATS_POR_VERTICE)
 
     @staticmethod
@@ -328,6 +335,19 @@ class Modelos:
         dist = math.sqrt(sum(c ** 2 for c in center))
         return dist < self.culling_distance
 
+    @classmethod
+    def desde_datos(cls, datos, colores, culling_dist=1e9):
+        """Crea un modelo a partir de geometría ya armada en memoria.
+        datos: material -> array (N, 8) [posición, uv, normal]; colores: material -> (r, g, b)."""
+        m = cls(None, None, culling_dist=culling_dist)
+        for mat, color in colores.items():
+            m.materiales[mat] = _material_defecto()
+            m.materiales[mat]['kd'] = list(color)
+            m.materiales[mat]['ks'] = [0.08, 0.08, 0.08]
+        m._datos = {k: np.ascontiguousarray(v, dtype=np.float32) for k, v in datos.items() if len(v)}
+        m._generate_vbos()
+        return m
+
     # --------------------------------------------------------------- Carga
     def cargarmodelos(self):
         _verificar_archivo(self.path_obj)
@@ -369,6 +389,7 @@ class Modelos:
 
             m = self.materiales.get(mat) or _material_defecto()
             tex = m['tex_id']
+            _iluminacion.set_modo(self.modos.get(mat, _iluminacion.MODO_NORMAL))
 
             glEnable(GL_TEXTURE_2D)
             if tex:
@@ -411,6 +432,7 @@ class Modelos:
                 glPopMatrix()
                 glMatrixMode(GL_MODELVIEW)
 
+        _iluminacion.set_modo(_iluminacion.MODO_NORMAL)
         glDisableClientState(GL_VERTEX_ARRAY)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_NORMAL_ARRAY)

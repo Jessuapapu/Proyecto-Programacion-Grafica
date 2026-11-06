@@ -1,51 +1,63 @@
 """
-Bosque: dibuja muchas copias de un mismo árbol (instancias) en distintas
-posiciones, rotaciones y tamaños. El modelo se carga una sola vez en la GPU,
-así que agregar árboles casi no cuesta memoria.
+Bosque: árboles y arbustos low-poly repartidos por el mapa.
+
+Las posiciones salen de modelosObj/Terreno/vegetacion.json (ver
+Recursos/Herramientas/generar_mapa.py). Todos los árboles se juntan en un solo
+bloque de geometría por material, así miles de árboles se dibujan con unas
+pocas llamadas a OpenGL.
 """
-from OpenGL.GL import *
+import json
+import math
+from collections import defaultdict
+
+from Clases.Modelo import Modelos
+from Clases import ArbolesLowPoly
+from Escenas import Iluminacion
+
+# Altura del tronco (a escala 1) usada para las colisiones; por encima se puede volar entre las copas
+ALTURA_TRONCO = 12.0
+LIMITE_COLISION = 260.0     # solo los árboles a los que la cámara puede llegar
+CELDA = 10.0
 
 
-class Arboles:
-    def __init__(self, modelo, posiciones, radio_tronco=0.9, altura=13.5, distancia_max=420.0):
-        """
-        modelo      : Modelo.Modelos con un solo árbol cuya base del tronco está en el origen.
-        posiciones  : lista de (x, y, z, rotacion_grados, escala).
-        radio_tronco: radio de colisión del tronco (antes de escalar).
-        altura      : altura aproximada del árbol (antes de escalar), para la colisión.
-        """
-        self.modelo = modelo
-        self.posiciones = list(posiciones)
-        self.radio_tronco = radio_tronco
-        self.altura = altura
-        self.distancia_max = distancia_max
-        self.camara = None          # posición de la cámara, para no dibujar árboles muy lejanos
+class Bosque:
+    def __init__(self, ruta_json):
+        self.ruta_json = ruta_json
+        self.modelo = None
+        self.cantidad = 0
+        self._celdas = defaultdict(list)
 
-    # Misma interfaz que Modelo.Modelos, para poder usarlo dentro de Escenas
     def cargarmodelos(self):
-        self.modelo.cargarmodelos()
+        with open(self.ruta_json, "r", encoding="utf-8") as f:
+            datos = json.load(f)
+        arboles = [tuple(a) for a in datos.get("arboles", [])]
+        arbustos = [("arbusto",) + tuple(a) for a in datos.get("arbustos", [])]
+        self.cantidad = len(arboles)
 
-    def liberar(self):
-        self.modelo.liberar()
+        geometria = ArbolesLowPoly.combinar(arboles + arbustos)
+        self.modelo = Modelos.desde_datos(geometria, ArbolesLowPoly.MATERIALES)
+        self.modelo.modos = {m: Iluminacion.MODO_FOLLAJE for m in ArbolesLowPoly.MATERIALES if m.startswith("Hoja")}
+
+        for tipo, _, x, y, z, _, esc in arboles:
+            radio = ArbolesLowPoly.RADIO_TRONCO.get(tipo, 0.0) * esc
+            if radio <= 0 or abs(x) > LIMITE_COLISION or abs(z) > LIMITE_COLISION:
+                continue
+            tronco = (x, y, z, radio, ALTURA_TRONCO * esc)
+            for cx in range(int(math.floor((x - radio) / CELDA)), int(math.floor((x + radio) / CELDA)) + 1):
+                for cz in range(int(math.floor((z - radio) / CELDA)), int(math.floor((z + radio) / CELDA)) + 1):
+                    self._celdas[(cx, cz)].append(tronco)
 
     def collides(self, punto):
         x, y, z = punto
-        for ax, ay, az, _, esc in self.posiciones:
-            r = self.radio_tronco * esc
-            if (x - ax) ** 2 + (z - az) ** 2 < r * r and ay - 1.0 <= y <= ay + self.altura * esc:
+        for ax, ay, az, radio, alto in self._celdas.get((int(math.floor(x / CELDA)), int(math.floor(z / CELDA))), ()):
+            if (x - ax) ** 2 + (z - az) ** 2 < radio * radio and ay - 1.0 <= y <= ay + alto:
                 return True
         return False
 
     def draw(self):
-        lim2 = self.distancia_max ** 2
-        for x, y, z, rot, esc in self.posiciones:
-            if self.camara is not None:
-                dx, dz = x - self.camara[0], z - self.camara[2]
-                if dx * dx + dz * dz > lim2:
-                    continue
-            glPushMatrix()
-            glTranslatef(x, y, z)
-            glRotatef(rot, 0.0, 1.0, 0.0)
-            glScalef(esc, esc, esc)
+        if self.modelo is not None:
             self.modelo.draw()
-            glPopMatrix()
+
+    def liberar(self):
+        if self.modelo is not None:
+            self.modelo.liberar()

@@ -78,9 +78,16 @@ def init_opengl(width, height):
     glEnable(GL_DEPTH_TEST)
 
 
+# Altura mínima de la cámara sobre el suelo (al caminar sobre lomas la cámara sube sola)
+ALTURA_MINIMA_SUELO = 2.0
+
+
 def mover(camara, escena, skybox_, nueva_pos):
     """Mueve la cámara solo si la nueva posición no choca con la hacienda, con un
-    árbol ni sale del skybox."""
+    árbol ni sale del skybox. Nunca deja que la cámara quede bajo el terreno."""
+    suelo = Hac.Terreno.altura_en(nueva_pos[0], nueva_pos[2]) + ALTURA_MINIMA_SUELO
+    if nueva_pos[1] < suelo:
+        nueva_pos = [nueva_pos[0], suelo, nueva_pos[2]]
     if (not escena.Modelos[0].collides(nueva_pos) and not Hac.Bosque.collides(nueva_pos)
             and not skybox_.collides(nueva_pos)):
         camara.cam_pos = nueva_pos
@@ -297,7 +304,6 @@ def main():
         iluminacion.draw_light_source(camara.cam_pos)
 
         # Dibujar escena
-        Hac.Bosque.camara = camara.cam_pos
         iluminacion.activar_shader()
         Hacienda.DibujarEscena()
         iluminacion.desactivar_shader()

@@ -9,6 +9,7 @@ Iluminación de la escena: ciclo día/noche continuo.
   no compila se usa automáticamente la iluminación fija de OpenGL.
 """
 import math
+import numpy as np
 from OpenGL.GL import *
 
 # ----------------------------------------------------------- Parámetros
@@ -81,9 +82,21 @@ def es_de_dia():
 
 
 # ------------------------------------------------------------ Shaders
+# Modos de sombreado especiales (se eligen por material con set_modo)
+MODO_NORMAL = 0
+MODO_TERRENO = 1     # textura de color + textura de detalle repetida en coordenadas del mundo
+MODO_PARED = 2       # pared encalada con zócalo gris azulado en la parte baja
+MODO_FOLLAJE = 3     # hojas: la luz "envuelve" la copa para que su parte de abajo no quede negra
+
+ESCALA_DETALLE = 0.2          # la textura de detalle del suelo se repite cada 5 unidades
+ALTURA_ZOCALO = -0.6          # altura (y del mundo) hasta donde llega el zócalo de las paredes
+COLOR_ZOCALO = (0.47, 0.53, 0.58)
+
 _VERTEX_SHADER = """
 #version 120
+uniform mat4 vistaInversa;
 varying vec3 vPosOjo;
+varying vec3 vMundo;
 varying vec3 vNormal;
 varying vec3 vArriba;
 varying vec4 vColor;
@@ -92,6 +105,7 @@ varying vec2 vUV;
 void main() {
     vec4 posOjo = gl_ModelViewMatrix * gl_Vertex;
     vPosOjo = posOjo.xyz;
+    vMundo  = (vistaInversa * posOjo).xyz;
     vNormal = gl_NormalMatrix * gl_Normal;
     vArriba = gl_NormalMatrix * vec3(0.0, 1.0, 0.0);
     vColor  = gl_Color;
@@ -103,14 +117,41 @@ void main() {
 _FRAGMENT_SHADER = """
 #version 120
 uniform sampler2D textura;
+uniform sampler2D detalle;
+uniform int modo;
+uniform float escalaDetalle;
+uniform float alturaZocalo;
+uniform vec3 colorZocalo;
 varying vec3 vPosOjo;
+varying vec3 vMundo;
 varying vec3 vNormal;
 varying vec3 vArriba;
 varying vec4 vColor;
 varying vec2 vUV;
 
 void main() {
-    vec4 base = vColor * texture2D(textura, vUV);
+    vec4 tex = texture2D(textura, vUV);
+    vec4 base = vColor * tex;
+
+    if (modo == 1) {
+        // Suelo: color general (textura grande) x detalle fino repetido en dos escalas.
+        // El canal alfa del color indica cuánto pasto hay (1) o tierra desnuda (0).
+        vec2 p = vMundo.xz * escalaDetalle;
+        vec3 d1 = texture2D(detalle, p).rgb;
+        vec3 d2 = texture2D(detalle, p * 0.27 + vec2(0.37, 0.71)).rgb;
+        float pasto = d1.r * 0.6 + d2.r * 0.4;
+        float tierra = d1.g * 0.6 + d2.g * 0.4;
+        float det = mix(tierra, pasto, tex.a) * 2.0;
+        base = vec4(vColor.rgb * tex.rgb * det, 1.0);
+    } else if (modo == 2) {
+        // Pared encalada: zócalo gris azulado y una línea de sombra encima
+        if (vMundo.y < alturaZocalo) {
+            float lum = dot(tex.rgb, vec3(0.333));
+            base.rgb = colorZocalo * (0.78 + 0.32 * lum);
+        } else if (vMundo.y < alturaZocalo + 0.15) {
+            base.rgb *= 0.72;
+        }
+    }
 
     vec3 N = normalize(vNormal);
     if (!gl_FrontFacing) N = -N;
@@ -118,19 +159,24 @@ void main() {
 
     // Ambiente hemisférico: lo que mira al cielo recibe más luz que lo que mira al suelo
     float h = dot(N, normalize(vArriba)) * 0.5 + 0.5;
-    vec3 luz = gl_LightModel.ambient.rgb * mix(0.55, 1.15, h);
+    float follaje = (modo == 3) ? 1.0 : 0.0;
+    vec3 luz = gl_LightModel.ambient.rgb * mix(mix(0.68, 0.95, follaje), 1.15, h);
+    float envoltura = 0.55 * follaje;
     vec3 brillo = vec3(0.0);
 
     for (int i = 0; i < 3; i++) {
         vec3 L = normalize(gl_LightSource[i].position.xyz);
         float NdotL = max(dot(N, L), 0.0);
-        luz += gl_LightSource[i].diffuse.rgb * NdotL;
+        luz += gl_LightSource[i].diffuse.rgb * max((dot(N, L) + envoltura) / (1.0 + envoltura), 0.0);
         if (NdotL > 0.0) {
             vec3 H = normalize(L + V);
             brillo += gl_LightSource[i].specular.rgb *
                       pow(max(dot(N, H), 0.0), gl_FrontMaterial.shininess);
         }
     }
+
+    // Las hojas dejan pasar algo de luz del sol: la copa se ve verde también por debajo
+    luz += gl_LightSource[0].diffuse.rgb * 0.3 * follaje;
 
     vec3 color = base.rgb * luz + brillo * gl_FrontMaterial.specular.rgb;
 
@@ -146,6 +192,10 @@ void main() {
     gl_FragColor = vec4(color, base.a);
 }
 """
+
+_uniformes = {}
+_activo = False
+_modo_actual = None
 
 
 def _compilar(tipo, fuente):
@@ -170,8 +220,15 @@ def _crear_shader():
         if not glGetProgramiv(prog, GL_LINK_STATUS):
             log = glGetProgramInfoLog(prog)
             raise RuntimeError(log.decode() if isinstance(log, bytes) else str(log))
+        for nombre in ("textura", "detalle", "modo", "escalaDetalle", "alturaZocalo", "colorZocalo", "vistaInversa"):
+            _uniformes[nombre] = glGetUniformLocation(prog, nombre)
         glUseProgram(prog)
-        glUniform1i(glGetUniformLocation(prog, "textura"), 0)
+        glUniform1i(_uniformes["textura"], 0)
+        glUniform1i(_uniformes["detalle"], 1)
+        glUniform1i(_uniformes["modo"], MODO_NORMAL)
+        glUniform1f(_uniformes["escalaDetalle"], ESCALA_DETALLE)
+        glUniform1f(_uniformes["alturaZocalo"], ALTURA_ZOCALO)
+        glUniform3f(_uniformes["colorZocalo"], *COLOR_ZOCALO)
         glUseProgram(0)
         _shader = prog
         print("Iluminación por píxel activada (GLSL).")
@@ -180,17 +237,39 @@ def _crear_shader():
         print(f"⚠️ Shader no disponible, se usa iluminación fija de OpenGL: {e}")
 
 
+def shader_disponible():
+    return _shader is not None
+
+
 def activar_shader():
-    """Llamar antes de dibujar los modelos de la escena."""
+    """Llamar antes de dibujar los modelos de la escena, con la cámara ya colocada
+    (después de gluLookAt), porque aquí se toma la matriz de vista."""
+    global _activo, _modo_actual
     glEnable(GL_FOG)
     if _shader:
         glUseProgram(_shader)
+        vista = np.array(glGetFloatv(GL_MODELVIEW_MATRIX), dtype=np.float64).reshape(4, 4).T
+        inversa = np.linalg.inv(vista).astype(np.float32)
+        glUniformMatrix4fv(_uniformes["vistaInversa"], 1, GL_TRUE, inversa)
+        glUniform1i(_uniformes["modo"], MODO_NORMAL)
+        _modo_actual = MODO_NORMAL
+        _activo = True
 
 
 def desactivar_shader():
+    global _activo
     if _shader:
         glUseProgram(0)
+    _activo = False
     glDisable(GL_FOG)
+
+
+def set_modo(modo):
+    """Cambia el modo de sombreado para lo que se dibuje a continuación (solo con shader)."""
+    global _modo_actual
+    if _activo and modo != _modo_actual:
+        glUniform1i(_uniformes["modo"], int(modo))
+        _modo_actual = modo
 
 
 # ------------------------------------------------------------ Inicialización
